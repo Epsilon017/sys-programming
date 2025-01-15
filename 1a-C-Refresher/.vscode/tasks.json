@@ -24,6 +24,9 @@
                     "severity": 4,
                     "message": 5
                 }
+            },
+            "presentation": {
+                "reveal": "never"
             }
         }
     ]
