@@ -1,23 +1,64 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 
 #define BUFFER_SZ 50
+
+#define EXIT_SUCCESS 0 // ran correctly
+#define EXIT_CMD_LINE_ERR 1 // error with command line arguments
+#define EXIT_MEM_ALLOC_ERR 2 // error allocating memory
+#define EXIT_SERVICE_ERR 3 // error with a provided service
 
 //prototypes
 void usage(char *);
 void print_buff(char *, int);
 int  setup_buff(char *, char *, int);
-
-//prototypes for functions to handle required functionality
 int  count_words(char *, int, int);
-//add additional prototypes here
 
 
 int setup_buff(char *buff, char *user_str, int len){
     //TODO: #4:  Implement the setup buff as per the directions
-    return 0; //for now just so the code compiles. 
+
+    // check string length before doing anything
+    for (int i = 0; *(user_str + i) != '\0'; i++) {
+        if (i > len) {
+            return -1; // user string is too large
+        }
+    }
+
+    int user_str_index = 0;
+    int buff_index = 0;
+    char current_char = *user_str;
+    bool last_char_whitespace = false;
+
+    while (current_char != '\0') {
+
+        // replace non-space whitespace with space
+        if (current_char == '\t') {
+            current_char = ' ';
+        }
+
+        // add character to buffer, avoiding duplicate whitespace
+        if (current_char != ' ' || !last_char_whitespace) {
+            *(buff + buff_index) = current_char;
+            buff_index++;
+        }
+
+        last_char_whitespace = (current_char == ' ');
+
+        user_str_index++;
+        current_char = *(user_str + user_str_index);
+    }
+
+    // fill remaining space with periods
+    while (buff_index < len) {
+        *(buff + buff_index) = '.';
+        buff_index++;
+    }
+
+    return user_str_index;
 }
 
 void print_buff(char *buff, int len){
@@ -49,7 +90,9 @@ int main(int argc, char *argv[]){
     int  user_str_len;      //length of user supplied string
 
     //TODO:  #1. WHY IS THIS SAFE, aka what if arv[1] does not exist?
-    //      PLACE A COMMENT BLOCK HERE EXPLAINING
+    //      If argv[1] does not exist, it will equal the null pointer. In C, the null pointer can be evaluated to 0. The dash in the
+    //      condition has an associated integer value of 45. This means the condition would just be testing if 0 is equal to 45, which
+    //      would safely come out as false.
     if ((argc < 2) || (*argv[1] != '-')){
         usage(argv[0]);
         exit(1);
@@ -66,7 +109,7 @@ int main(int argc, char *argv[]){
     //WE NOW WILL HANDLE THE REQUIRED OPERATIONS
 
     //TODO:  #2 Document the purpose of the if statement below
-    //      PLACE A COMMENT BLOCK HERE EXPLAINING
+    //      If the help flag isn't raised, then an option plus a string is required, so argc must be at least 3.
     if (argc < 3){
         usage(argv[0]);
         exit(1);
@@ -77,7 +120,12 @@ int main(int argc, char *argv[]){
     //TODO:  #3 Allocate space for the buffer using malloc and
     //          handle error if malloc fails by exiting with a 
     //          return code of 99
-    // CODE GOES HERE FOR #3
+    //          Git directions say to use return code 2, I will be using that.
+    buff = malloc(sizeof(input_string));
+    if (buff == NULL) {
+        printf("Unable to allocate memory.");
+        exit(EXIT_MEM_ALLOC_ERR);
+    }
 
 
     user_str_len = setup_buff(buff, input_string, BUFFER_SZ);     //see todos
