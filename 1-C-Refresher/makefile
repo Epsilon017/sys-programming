@@ -1,6 +1,6 @@
 # Compiler settings
 CC = gcc
-CFLAGS = -Wall -Wextra -g
+CFLAGS = -Wall -Wextra -g -Wnounused-parameter
 
 # Target executable name
 TARGET = stringfun.out
