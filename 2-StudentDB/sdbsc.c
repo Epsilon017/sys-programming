@@ -62,8 +62,24 @@ int open_db(char *dbFile, bool should_truncate)
  */
 int get_student(int fd, int id, student_t *s)
 {
-    // TODO
-    return NOT_IMPLEMENTED_YET;
+    
+    if (id < MIN_STD_ID || id > MAX_STD_ID) {
+        return ERR_DB_OP;
+    }
+
+    int offset = id * STUDENT_RECORD_SIZE;
+    lseek(fd, offset, SEEK_SET);
+
+    if (read(fd, s, STUDENT_RECORD_SIZE) != STUDENT_RECORD_SIZE) {
+        return ERR_DB_FILE;
+    }
+
+    if (s->id == DELETED_STUDENT_ID) {
+        return SRCH_NOT_FOUND;
+    }
+
+    return NO_ERROR;
+
 }
 
 /*
@@ -93,9 +109,42 @@ int get_student(int fd, int id, student_t *s)
  */
 int add_student(int fd, int id, char *fname, char *lname, int gpa)
 {
-    // TODO
-    printf(M_NOT_IMPL);
-    return NOT_IMPLEMENTED_YET;
+
+    if (id < MIN_STD_ID || id > MAX_STD_ID || gpa < MIN_STD_GPA || gpa > MAX_STD_GPA) {
+        printf(M_ERR_STD_RNG);
+        return ERR_DB_OP;
+    }
+
+    int offset = id * STUDENT_RECORD_SIZE; 
+    student_t data_at_offset;
+
+    lseek(fd, offset, SEEK_SET);
+
+    if (read(fd, &data_at_offset, STUDENT_RECORD_SIZE) != STUDENT_RECORD_SIZE) {
+        printf(M_ERR_DB_READ);
+        return ERR_DB_FILE;
+    }
+
+    // ensure spot is empty
+    if (memcmp(&data_at_offset, &EMPTY_STUDENT_RECORD, STUDENT_RECORD_SIZE) != 0) {
+        printf(M_ERR_DB_ADD_DUP);
+        return ERR_DB_OP;
+    }
+
+    student_t new_student = { id, "", "", gpa };
+    strncpy(new_student.fname, fname, sizeof(new_student.fname) - 1);
+    strncpy(new_student.lname, lname, sizeof(new_student.lname) - 1);
+
+    lseek(fd, offset, SEEK_SET);
+
+    if (write(fd, &new_student, STUDENT_RECORD_SIZE) != STUDENT_RECORD_SIZE) {
+        printf(M_ERR_DB_WRITE);
+        return ERR_DB_FILE;
+    }
+
+    printf(M_STD_ADDED);
+    return NO_ERROR;
+
 }
 
 /*
