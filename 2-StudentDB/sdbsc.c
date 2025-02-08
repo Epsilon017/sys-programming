@@ -239,6 +239,11 @@ int count_db_records(int fd)
     int count = 0;
     int offset = 0;
 
+    if (lseek(fd, MIN_STD_ID * STUDENT_RECORD_SIZE, SEEK_SET) == -1) {
+        printf(M_ERR_DB_READ);
+        return ERR_DB_FILE;
+    };
+
     while (read(fd, &s, STUDENT_RECORD_SIZE) == STUDENT_RECORD_SIZE) {
         if (memcmp(&s, &EMPTY_STUDENT_RECORD, STUDENT_RECORD_SIZE) != 0) {
             count++;
