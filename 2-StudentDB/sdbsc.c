@@ -262,8 +262,7 @@ int count_db_records(int fd)
     student_t s;
     int count = 0;
 
-    // seek to second index, first one will always be empty
-    if (lseek(fd, MIN_STD_ID * STUDENT_RECORD_SIZE, SEEK_SET) == -1) {
+    if (lseek(fd, 0, SEEK_SET) == -1) {
         printf(M_ERR_DB_READ);
         return ERR_DB_FILE;
     };
@@ -320,7 +319,7 @@ int print_db(int fd)
     bool first_record = true;
     int offset = 0;
 
-    if (lseek(fd, MIN_STD_ID * STUDENT_RECORD_SIZE, SEEK_SET) == -1) {
+    if (lseek(fd, 0, SEEK_SET) == -1) {
         printf(M_ERR_DB_READ);
         return ERR_DB_FILE;
     };
@@ -442,9 +441,53 @@ void print_student(student_t *s)
  */
 int compress_db(int fd)
 {
-    // TODO
-    printf(M_NOT_IMPL);
-    return fd;
+
+    int temp_fd = open(TMP_DB_FILE, O_RDWR | O_CREAT | O_TRUNC, 0666);
+    if (temp_fd == -1) {
+        printf(M_ERR_DB_OPEN);
+        return ERR_DB_FILE;
+    }
+
+    if (lseek(fd, 0, SEEK_SET) == -1) {
+        printf(M_ERR_DB_READ);
+        close(temp_fd);
+        return ERR_DB_FILE;
+    }
+
+    student_t student;
+    int offset = 0;
+
+    while (read(fd, &student, STUDENT_RECORD_SIZE) == STUDENT_RECORD_SIZE) {
+
+        if (lseek(temp_fd, offset, SEEK_SET) == -1) {
+            printf(M_ERR_DB_READ);
+            close(temp_fd);
+            return ERR_DB_FILE;
+        }
+
+        if (memcmp(&student, &EMPTY_STUDENT_RECORD, STUDENT_RECORD_SIZE) != 0) {
+            if (write(temp_fd, &student, STUDENT_RECORD_SIZE) != STUDENT_RECORD_SIZE) {
+                printf(M_ERR_DB_WRITE);
+                close(temp_fd);
+                return ERR_DB_FILE;
+            }
+        }
+
+        offset += STUDENT_RECORD_SIZE;
+
+    }
+
+    close(fd);
+    close(temp_fd);
+
+    if (rename(TMP_DB_FILE, DB_FILE) == -1) {
+        printf(M_ERR_DB_CREATE);
+        return ERR_DB_FILE;
+    }
+    
+    printf(M_DB_COMPRESSED_OK);
+    return open_db(DB_FILE, false);
+
 }
 
 /*
