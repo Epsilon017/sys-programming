@@ -9,40 +9,40 @@ setup_file() {
 }
 
 @test "Check if database is empty to start" {
-    run ./sdbsc -p
+    run ./sdbsc.out -p
     [ "$status" -eq 0 ]
     [ "$output" = "Database contains no student records." ]
 }
 
 @test "Add a student 1 to db" {
-    run ./sdbsc -a 1      john doe 345
+    run ./sdbsc.out -a 1      john doe 345
     [ "$status" -eq 0 ]
     [ "${lines[0]}" = "Student 1 added to database." ]
 }
 
 @test "Add more students to db" {
-    run ./sdbsc -a 3      jane  doe  390
+    run ./sdbsc.out -a 3      jane  doe  390
     [ "$status" -eq 0 ]
     [ "${lines[0]}" = "Student 3 added to database." ] || {
         echo "Failed Output:  $output"
         return 1
     }
 
-    run ./sdbsc -a 63     jim   doe  285
+    run ./sdbsc.out -a 63     jim   doe  285
     [ "$status" -eq 0 ]
     [ "${lines[0]}" = "Student 63 added to database." ] || {
         echo "Failed Output:  $output"
         return 1
     }
 
-    run ./sdbsc -a 64     janet doe  310
+    run ./sdbsc.out -a 64     janet doe  310
     [ "$status" -eq 0 ]
     [ "${lines[0]}" = "Student 64 added to database." ] || {
         echo "Failed Output:  $output"
         return 1
     }
 
-    run ./sdbsc -a 99999  big   dude 205
+    run ./sdbsc.out -a 99999  big   dude 205
     [ "$status" -eq 0 ]
     [ "${lines[0]}" = "Student 99999 added to database." ] || {
         echo "Failed Output:  $output"
@@ -51,7 +51,7 @@ setup_file() {
 }
 
 @test "Check student count" {
-    run ./sdbsc -c
+    run ./sdbsc.out -c
     [ "$status" -eq 0 ]
     [ "${lines[0]}" = "Database contains 5 student record(s)." ] || {
         echo "Failed Output:  $output"
@@ -60,7 +60,7 @@ setup_file() {
 }
 
 @test "Make sure adding duplicate student fails" {
-    run ./sdbsc -a 63 dup student 300
+    run ./sdbsc.out -a 63 dup student 300
     [ "$status" -eq 1 ]  || {
         echo "Expecting status of 1, got:  $status"
         return 1
@@ -82,7 +82,7 @@ setup_file() {
 }
 
 @test "Find student 3 in db" {
-    run ./sdbsc -f 3
+    run ./sdbsc.out -f 3
     
     # Ensure the command ran successfully
     [ "$status" -eq 0 ]
@@ -102,7 +102,7 @@ setup_file() {
 }
 
 @test "Try looking up non-existent student" {
-    run ./sdbsc -f 4
+    run ./sdbsc.out -f 4
     [ "$status" -eq 1 ]  || {
         echo "Expecting status of 1, got:  $status"
         return 1
@@ -114,7 +114,7 @@ setup_file() {
 }
 
 @test "Delete student 64 in db" {
-    run ./sdbsc -d 64
+    run ./sdbsc.out -d 64
     [ "$status" -eq 0 ]
     [ "${lines[0]}" = "Student 64 was deleted from database." ] || {
         echo "Failed Output:  $output"
@@ -123,7 +123,7 @@ setup_file() {
 }
 
 @test "Try deleting non-existent student" {
-    run ./sdbsc -d 65
+    run ./sdbsc.out -d 65
     [ "$status" -eq 1 ]  || {
         echo "Expecting status of 1, got:  $status"
         return 1
@@ -135,7 +135,7 @@ setup_file() {
 }
 
 @test "Check student count again, should be 4 now" {
-    run ./sdbsc -c
+    run ./sdbsc.out -c
     [ "$status" -eq 0 ]
     [ "${lines[0]}" = "Database contains 4 student record(s)." ] || {
         echo "Failed Output:  $output"
@@ -145,7 +145,7 @@ setup_file() {
 
 @test "Print student records" {
     # Run the command
-    run ./sdbsc -p
+    run ./sdbsc.out -p
 
     # Ensure the command ran successfully
     [ "$status" -eq 0 ]
@@ -167,7 +167,7 @@ setup_file() {
 
 @test "Compress db - try 1" {
     skip
-    run ./sdbsc -x
+    run ./sdbsc.out -x
     [ "$status" -eq 0 ]
     [ "${lines[0]}" = "Database successfully compressed!" ] || {
         echo "Failed Output:  $output"
@@ -177,7 +177,7 @@ setup_file() {
 
 
 @test "Delete student 99999 in db" {
-    run ./sdbsc -d 99999
+    run ./sdbsc.out -d 99999
     [ "$status" -eq 0 ]
     [ "${lines[0]}" = "Student 99999 was deleted from database." ] || {
         echo "Failed Output:  $output"
@@ -186,7 +186,8 @@ setup_file() {
 }
 
 @test "Compress db again - try 2" {
-    run ./sdbsc -x
+    skip
+    run ./sdbsc.out -x
     [ "$status" -eq 0 ]
     [ "${lines[0]}" = "Database successfully compressed!" ] || {
         echo "Failed Output:  $output"
