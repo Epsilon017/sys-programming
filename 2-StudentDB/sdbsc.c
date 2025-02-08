@@ -68,13 +68,16 @@ int get_student(int fd, int id, student_t *s)
     }
 
     int offset = id * STUDENT_RECORD_SIZE;
-    lseek(fd, offset, SEEK_SET);
 
-    if (read(fd, s, STUDENT_RECORD_SIZE) != STUDENT_RECORD_SIZE) {
+    if (lseek(fd, offset, SEEK_SET) == -1) {
         return ERR_DB_FILE;
     }
 
-    if (s->id == DELETED_STUDENT_ID) {
+    int bytes_read = read(fd, s, STUDENT_RECORD_SIZE);
+
+    if (bytes_read == -1) {
+        return ERR_DB_FILE;
+    } else if (bytes_read < STUDENT_RECORD_SIZE || s->id == DELETED_STUDENT_ID) {
         return SRCH_NOT_FOUND;
     }
 
@@ -118,24 +121,46 @@ int add_student(int fd, int id, char *fname, char *lname, int gpa)
     int offset = id * STUDENT_RECORD_SIZE; 
     student_t data_at_offset;
 
-    lseek(fd, offset, SEEK_SET);
-
-    if (read(fd, &data_at_offset, STUDENT_RECORD_SIZE) != STUDENT_RECORD_SIZE) {
+    // seek to correct location in file
+    if (lseek(fd, offset, SEEK_SET) == -1) {
         printf(M_ERR_DB_READ);
         return ERR_DB_FILE;
     }
 
-    // ensure spot is empty
-    if (memcmp(&data_at_offset, &EMPTY_STUDENT_RECORD, STUDENT_RECORD_SIZE) != 0) {
-        printf(M_ERR_DB_ADD_DUP, id);
-        return ERR_DB_OP;
+    // attempt to read the student record
+    int bytes_read = read(fd, &data_at_offset, STUDENT_RECORD_SIZE);
+    if (bytes_read == -1) {
+        printf(M_ERR_DB_READ);
+        return ERR_DB_FILE;
     }
 
+    if (bytes_read == STUDENT_RECORD_SIZE) {
+
+        // actual record was read, ensure spot is empty
+        if (memcmp(&data_at_offset, &EMPTY_STUDENT_RECORD, STUDENT_RECORD_SIZE) != 0) {
+            printf(M_ERR_DB_ADD_DUP, id);
+            return ERR_DB_OP;
+        }
+
+    } else {
+
+        // hit EOF, extend
+        if (ftruncate(fd, offset + STUDENT_RECORD_SIZE) == -1) {
+            printf(M_ERR_DB_WRITE);
+            return ERR_DB_FILE;
+        }
+
+    }
+
+    // build and write new student record
     student_t new_student = { id, "", "", gpa };
     strncpy(new_student.fname, fname, sizeof(new_student.fname) - 1);
     strncpy(new_student.lname, lname, sizeof(new_student.lname) - 1);
 
-    lseek(fd, offset, SEEK_SET);
+    if (lseek(fd, offset, SEEK_SET) == -1) {
+        printf(M_ERR_DB_READ);
+        return ERR_DB_FILE;
+    }
 
     if (write(fd, &new_student, STUDENT_RECORD_SIZE) != STUDENT_RECORD_SIZE) {
         printf(M_ERR_DB_WRITE);
@@ -179,20 +204,19 @@ int del_student(int fd, int id)
 
     student_t s;
     int result = get_student(fd, id, &s);
-    
+
     if (result == SRCH_NOT_FOUND) {
 
+        // return error code if trying to delete nonexistent student
         printf(M_STD_NOT_FND_MSG, id);
         return ERR_DB_OP;
 
     } else if (result == ERR_DB_FILE) {
-
         printf(M_ERR_DB_READ);
         return ERR_DB_FILE;
-
     }
 
-    int offset = (id - MIN_STD_ID) * STUDENT_RECORD_SIZE;
+    int offset = id * STUDENT_RECORD_SIZE;
     if (lseek(fd, offset, SEEK_SET) == -1) {
         printf(M_ERR_DB_WRITE);
         return ERR_DB_FILE;
@@ -237,26 +261,21 @@ int count_db_records(int fd)
 
     student_t s;
     int count = 0;
-    int offset = 0;
 
+    // seek to second index, first one will always be empty
     if (lseek(fd, MIN_STD_ID * STUDENT_RECORD_SIZE, SEEK_SET) == -1) {
         printf(M_ERR_DB_READ);
         return ERR_DB_FILE;
     };
 
+    // traverses, counting indexes that aren't an empty student record
     while (read(fd, &s, STUDENT_RECORD_SIZE) == STUDENT_RECORD_SIZE) {
         if (memcmp(&s, &EMPTY_STUDENT_RECORD, STUDENT_RECORD_SIZE) != 0) {
             count++;
         }
-        offset += STUDENT_RECORD_SIZE;
     }
 
-    if (offset == 0) {
-        printf(M_DB_EMPTY);
-        return 0;
-    }
-
-    printf(M_DB_RECORD_CNT, count);
+    printf(count == 0 ? M_DB_EMPTY : M_DB_RECORD_CNT, count);
     return count;
 
 }
