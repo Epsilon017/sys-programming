@@ -127,7 +127,7 @@ int add_student(int fd, int id, char *fname, char *lname, int gpa)
 
     // ensure spot is empty
     if (memcmp(&data_at_offset, &EMPTY_STUDENT_RECORD, STUDENT_RECORD_SIZE) != 0) {
-        printf(M_ERR_DB_ADD_DUP);
+        printf(M_ERR_DB_ADD_DUP, id);
         return ERR_DB_OP;
     }
 
@@ -142,7 +142,7 @@ int add_student(int fd, int id, char *fname, char *lname, int gpa)
         return ERR_DB_FILE;
     }
 
-    printf(M_STD_ADDED);
+    printf(M_STD_ADDED, id);
     return NO_ERROR;
 
 }
@@ -171,9 +171,41 @@ int add_student(int fd, int id, char *fname, char *lname, int gpa)
  */
 int del_student(int fd, int id)
 {
-    // TODO
-    printf(M_NOT_IMPL);
-    return NOT_IMPLEMENTED_YET;
+
+    if (id < MIN_STD_ID || id > MAX_STD_ID) {
+        printf(M_ERR_STD_RNG);
+        return ERR_DB_OP;
+    }
+
+    student_t s;
+    int result = get_student(fd, id, &s);
+    
+    if (result == SRCH_NOT_FOUND) {
+
+        printf(M_STD_NOT_FND_MSG, id);
+        return ERR_DB_OP;
+
+    } else if (result == ERR_DB_FILE) {
+
+        printf(M_ERR_DB_READ);
+        return ERR_DB_FILE;
+
+    }
+
+    int offset = (id - MIN_STD_ID) * STUDENT_RECORD_SIZE;
+    if (lseek(fd, offset, SEEK_SET) == -1) {
+        printf(M_ERR_DB_WRITE);
+        return ERR_DB_FILE;
+    }
+
+    if (write(fd, &EMPTY_STUDENT_RECORD, STUDENT_RECORD_SIZE) != STUDENT_RECORD_SIZE) {
+        printf(M_ERR_DB_WRITE);
+        return ERR_DB_FILE;
+    }
+
+    printf(M_STD_DEL_MSG, id);
+    return NO_ERROR;
+
 }
 
 /*
@@ -202,9 +234,26 @@ int del_student(int fd, int id)
  */
 int count_db_records(int fd)
 {
-    // TODO
-    printf(M_NOT_IMPL);
-    return NOT_IMPLEMENTED_YET;
+
+    student_t s;
+    int count = 0;
+    int offset = 0;
+
+    while (read(fd, &s, STUDENT_RECORD_SIZE) == STUDENT_RECORD_SIZE) {
+        if (memcmp(&s, &EMPTY_STUDENT_RECORD, STUDENT_RECORD_SIZE) != 0) {
+            count++;
+        }
+        offset += STUDENT_RECORD_SIZE;
+    }
+
+    if (offset == 0) {
+        printf(M_DB_EMPTY);
+        return 0;
+    }
+
+    printf(M_DB_RECORD_CNT, count);
+    return count;
+
 }
 
 /*
