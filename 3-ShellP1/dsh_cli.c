@@ -66,8 +66,30 @@ int main()
             break;
         }
 
-        command_list_t cmd_list;
-        build_cmd_list(cmd_buff, &cmd_list);
+        int build_rc = build_cmd_list(cmd_buff, &clist);
+
+        if (build_rc == ERR_TOO_MANY_COMMANDS) {
+            printf(CMD_ERR_PIPE_LIMIT, CMD_MAX);
+            continue;
+        }
+
+        if (clist.num == 0) {
+            printf(CMD_WARN_NO_CMD);
+            continue;
+        }
+
+        if (build_rc == OK) {
+
+            printf(CMD_OK_HEADER, clist.num);
+            for (int i = 0; i < clist.num; i++) {
+                printf("<%d> %s", i + 1, clist.commands[i].exe);
+                if (strlen(clist.commands[i].args) != 0) {
+                    printf(" [%s]", clist.commands[i].args);
+                }
+                printf("\n");
+            }
+
+        }
 
     }
 
