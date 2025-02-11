@@ -5,6 +5,10 @@
 
 #include "dshlib.h"
 
+// strtok and strsep want a strings, not a chars, so let's convert in a somewhat creative way
+#define PIPE_STR (char[2]) { (char) PIPE_CHAR, '\0' }
+#define SPACE_STR (char[2]) { (char) SPACE_CHAR, '\0' }
+
 /*
  *  build_cmd_list
  *    cmd_line:     the command line from the user
@@ -34,6 +38,77 @@
  */
 int build_cmd_list(char *cmd_line, command_list_t *clist)
 {
-    printf(M_NOT_IMPL);
-    return EXIT_NOT_IMPL;
+    
+    char* commands[CMD_MAX] = {NULL};
+    char* cmd_copy = strdup(cmd_line);
+    char* current_command = strtok(cmd_line, PIPE_STR);
+    int i = 0;
+
+    // fill 'commands' with cmd_line tokenized by pipe
+    while (current_command != NULL) {
+
+        if (i >= CMD_MAX) {
+
+            // too many commands
+            free(cmd_copy);
+            return ERR_TOO_MANY_COMMANDS;
+
+        }
+
+        // trim leading whitespace
+        while (*current_command == SPACE_CHAR) {
+            current_command++;
+        }
+
+        // trim tailing whitespace
+        char* end = current_command + strlen(current_command) - 1;
+        while (end > current_command && *end == SPACE_CHAR) {
+            *end = '\0';
+            end--;
+        }
+
+        commands[i] = strdup(current_command);
+        i++;
+        current_command = strtok(NULL, PIPE_STR);
+
+    }
+
+    // fill 'clist' with commands tokenized by space
+    int command_count = i;
+    for (i = 0; i < command_count; i++) {
+
+        current_command = strdup(commands[i]);
+
+        char* exe = strsep(&current_command, SPACE_STR);
+        char* args = current_command ? current_command : "";
+
+        if (strlen(exe) > EXE_MAX || strlen(args) > ARG_MAX) {
+
+            // exe or args too long
+            free(cmd_copy);
+            for (i = 0; i < CMD_MAX; i++) {
+                free(commands[i]);
+            }
+            return ERR_CMD_OR_ARGS_TOO_BIG;
+
+        }
+
+        // allocate and copy data into command struct
+        command_t* cmd = malloc(sizeof(command_t));
+        memset(cmd, 0, sizeof(command_t));
+        strcpy(cmd->exe, exe);
+        strcpy(cmd->args, args);
+        clist->commands[i] = *cmd;
+
+        free(cmd); // this might be wrong, check later
+
+    }
+
+    free(cmd_copy);
+    for (i = 0; i < command_count; i++) {
+        free(commands[i]);
+    }
+
+    return OK;
+
 }
