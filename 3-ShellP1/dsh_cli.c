@@ -67,7 +67,6 @@ void print_art_array(int art[]) {
 int main()
 {
     char cmd_buff[SH_CMD_MAX];
-    int rc = 0;
     command_list_t clist;
 
     while (1) {

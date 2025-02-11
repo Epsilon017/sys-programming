@@ -77,7 +77,7 @@ int build_cmd_list(char *cmd_line, command_list_t *clist)
     clist->num = i;
     for (i = 0; i < clist->num; i++) {
 
-        current_command = strdup(tokenized_commands[i]);
+        current_command = tokenized_commands[i];
 
         char* exe = strsep(&current_command, SPACE_STR);
         char* args = current_command ? current_command : "";
