@@ -1,0 +1,36 @@
+1. In this assignment I suggested you use `fgets()` to get user input in the main while loop. Why is `fgets()` a good choice for this application?
+
+    > **Answer**:  `fgets()` is a good choice because it reads user input line by line. This mimics a shell's expected behavior of processing a command after the user hits the enter button. Each command is a line, so it's best to read each command by line.
+
+2. You needed to use `malloc()` to allocte memory for `cmd_buff` in `dsh_cli.c`. Can you explain why you needed to do that, instead of allocating a fixed-size array?
+
+    > **Answer**:  I used a fixed-size array instead of malloc, and even after thinking hard about it, I truly see no reason why a dynamically allocated array would be absolutely necessary here. In the header file, the "longest command that can be read from the shell" is defined. This means any input longer than this value is invalid and should be ignored. There is never a need to store a string larger than `SH_CMD_MAX`, so the array can be fixed to this size. Allocating any extra space or resizing the array to fit an INVALID input is a waste of resources and adding unnecessary overhead. A fixed-size array is perfect for this application since a definite upper bound is known and it's not of exorbitant size. A pointer to the array can still be passed into functions. The only possibility I can see is if a system's stack is extremely limited in size, but that's a very niche example and isn't going to be a problem on any modern system running this program.
+
+
+3. In `dshlib.c`, the function `build_cmd_list(`)` must trim leading and trailing spaces from each command before storing it. Why is this necessary? If we didn't trim spaces, what kind of issues might arise when executing commands in our shell?
+
+    > **Answer**:  If the spaces aren't trimmed, it could cause problems when trying to recognize valid commands. For example, if the program is trying to process " exit", it isn't going to match "exit" since the first character is a space, not an 'e'. The same would occur with trailing spaces. This problem would be extremely prevalent when piping, since most people pipe "like | this", where both commands have whitespace either before or after the command.
+
+4. For this question you need to do some research on STDIN, STDOUT, and STDERR in Linux. We've learned this week that shells are "robust brokers of input and output". Google _"linux shell stdin stdout stderr explained"_ to get started.
+
+- One topic you should have found information on is "redirection". Please provide at least 3 redirection examples that we should implement in our custom shell, and explain what challenges we might have implementing them.
+
+    > **Answer**:  You can redirect stdout to a file using '>', where the program producing output is before it and the file to write to is afterwards. This allows the user to store the output for a function in a place where it'll last, rather than in the output stream where it might get cleared or pushed off the terminal as other commands are ran. This can also allow scripts to easily examine the output. Challenges may include deciding what to do if a file of that name already exists and making sure only the output streams we want redirected get redirected.
+    >
+    > You can also redirect a file to stdin when executing a program using '<', where the program being executed is before it and the file to use as input is afterwards. This is used supply input that can't efficiently be typed out by hand or was the redirected output of another function. We can feed many lines to the program without doing much work. The implementation challenges may include finding a standard way of porting the input file to the command. Different commands may want the input to come in differently, whether it's the whole file at once or line by line, so how we get the file to the command could pose a challenge. It's also a vital consideration to make sure we can read the file in the first place.
+    >
+    > You can append stdout to a file using '>>', where the program producing output is before it and the file to append to is afterwards. This is important because the user may want to collect output from multiple executions of a command or multiple different commands executing. This makes sure that existing files don't get overridden. A difficulty may be deciding what to do if the file we're appending to doesn't exist yet. As before, it's important to find a way to make sure only the output streams we want redirected get redirected.
+    >
+    > With all these examples of redirection, it's going to be an extra challenge specifying what order they get considered if multiple forms of redirection get used. For example, `./program < input > output.txt` versus `./program > output.txt < input`.
+
+- You should have also learned about "pipes". Redirection and piping both involve controlling input and output in the shell, but they serve different purposes. Explain the key differences between redirection and piping.
+
+    > **Answer**:  The purpose of redirecting is having an output stream, such as stdin, stdout, and stderr, written to a file instead of the terminal. Piping uses the output from one command as the input to another command, without any files within the user's scope being involved. Redirection can save output for later or serve files as input, while the results from a piped command get immediately used in the next command.
+
+- STDERR is often used for error messages, while STDOUT is for regular output. Why is it important to keep these separate in a shell?
+
+    > **Answer**:  It's important to keep these separate because mixing the results together would make it harder to analyze how a program is running. The difference between regular output and error output wouldn't be as distinct. The user may also be running a command that frequently hits an error that doesn't stop the execution or make the results invalid, but it still needs to notify the user. Having stderr separate allows the user to still use that output, especially while using piped commands where the input for the next command needs to be immediately available.
+
+- How should our custom shell handle errors from commands that fail? Consider cases where a command outputs both STDOUT and STDERR. Should we provide a way to merge them, and if so, how?
+
+    > **Answer**:  Since both stdout and stderr are typically printed straight to the terminal for the user to read, it's definitely necessary to have a way to merge them together. If the user wants all the output, from both stdout and stderr, redirected to the same file, this would also require the output streams to be merged. This would be useful if a command produces a lot of output as it scans through files and the user wants to check how a specific filename is being processed. Since the filename may be processed fine and printed to stdout or processed incorrectly and sent to stderr, the output streams can be combined and the user can search a single file.
