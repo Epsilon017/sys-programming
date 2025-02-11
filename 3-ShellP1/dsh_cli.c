@@ -74,9 +74,20 @@ int main()
 
         printf("%s", SH_PROMPT);
 
-        if (fgets(cmd_buff, ARG_MAX, stdin) == NULL) { // for running headless
+        if (fgets(cmd_buff, SH_CMD_MAX, stdin) == NULL) { // for running headless
             printf("\n");
             break;
+        }
+
+        if (!strchr(cmd_buff, '\n')) {
+
+            // input was way too long, clear input stream and ignore
+            char c = 0;
+            while (c != '\n' && c != EOF) {
+                c = getchar();
+            }
+            continue;
+
         }
 
         // remove the trailing \n from cmd_buff
