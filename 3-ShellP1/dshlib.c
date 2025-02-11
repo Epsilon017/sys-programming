@@ -5,7 +5,7 @@
 
 #include "dshlib.h"
 
-// strtok and strsep want a strings, not a chars, so let's convert in a somewhat creative way
+// strtok and strsep want strings, not chars, so let's convert in a somewhat creative way
 #define PIPE_STR (char[2]) { (char) PIPE_CHAR, '\0' }
 #define SPACE_STR (char[2]) { (char) SPACE_CHAR, '\0' }
 
@@ -39,9 +39,9 @@
 int build_cmd_list(char *cmd_line, command_list_t *clist)
 {
     
-    char* commands[CMD_MAX] = {NULL};
+    char* tokenized_commands[CMD_MAX] = {NULL};
     char* cmd_copy = strdup(cmd_line);
-    char* current_command = strtok(cmd_line, PIPE_STR);
+    char* current_command = strtok(cmd_copy, PIPE_STR);
     int i = 0;
 
     // fill 'commands' with cmd_line tokenized by pipe
@@ -67,17 +67,17 @@ int build_cmd_list(char *cmd_line, command_list_t *clist)
             end--;
         }
 
-        commands[i] = strdup(current_command);
+        tokenized_commands[i] = strdup(current_command);
         i++;
         current_command = strtok(NULL, PIPE_STR);
 
     }
 
     // fill 'clist' with commands tokenized by space
-    int command_count = i;
-    for (i = 0; i < command_count; i++) {
+    clist->num = i;
+    for (i = 0; i < clist->num; i++) {
 
-        current_command = strdup(commands[i]);
+        current_command = strdup(tokenized_commands[i]);
 
         char* exe = strsep(&current_command, SPACE_STR);
         char* args = current_command ? current_command : "";
@@ -86,27 +86,23 @@ int build_cmd_list(char *cmd_line, command_list_t *clist)
 
             // exe or args too long
             free(cmd_copy);
-            for (i = 0; i < CMD_MAX; i++) {
-                free(commands[i]);
+            for (int j = 0; j < i; j++) {
+                free(tokenized_commands[j]);
             }
             return ERR_CMD_OR_ARGS_TOO_BIG;
 
         }
 
-        // allocate and copy data into command struct
-        command_t* cmd = malloc(sizeof(command_t));
-        memset(cmd, 0, sizeof(command_t));
-        strcpy(cmd->exe, exe);
-        strcpy(cmd->args, args);
-        clist->commands[i] = *cmd;
-
-        free(cmd); // this might be wrong, check later
+        // copy data into command struct
+        memset(&clist->commands[i], 0, sizeof(command_t));
+        strcpy(clist->commands[i].exe, exe);
+        strcpy(clist->commands[i].args, args);
 
     }
 
     free(cmd_copy);
-    for (i = 0; i < command_count; i++) {
-        free(commands[i]);
+    for (i = 0; i < clist->num; i++) {
+        free(tokenized_commands[i]);
     }
 
     return OK;
