@@ -11,13 +11,68 @@
 
 /*
 
-    Input:  cmd_line: command line from user (null-terminated, no newline)
-            *cmd: pointer to struct to be populated with parsed input
-    Output: *cmd is fully populated
+    Input: a string of user input
+    Output: mutates input into clean, standardized input
 
     Trim ALL leading and trailing spaces
     Eliminate duplicate spaces UNLESS they are in a quoted string
     Account for quoted strings in input; treat a quoted string with spaces as a single argument
+
+*/
+
+void clean_input(char* cmd_line) {
+
+    // trim leading whitespace
+    while (*cmd_line == SPACE_CHAR) cmd_line++;
+
+    // trim tailing whitespace
+    char* end = cmd_line + strlen(cmd_line) - 1;
+    while (end > cmd_line && *end == SPACE_CHAR) {
+        *end = '\0';
+        end--;
+    }
+
+    // eliminate duplicate spaces, excluding those inside quotes
+    size_t i = 0;
+    bool is_prev_space = false;
+    bool is_in_quotes = false;
+    while (i < strlen(cmd_line)) {
+
+        if (cmd_line[i] == '"') {
+            is_in_quotes = !is_in_quotes;
+        }
+
+        if (cmd_line[i] == ' ' && !is_in_quotes) {
+
+            if (!is_prev_space) {
+                is_prev_space = true;
+                i++;
+            } else {
+                
+                // duplicate space found, delete
+                size_t j;
+                for (j = i; j < strlen(cmd_line); j++) {
+                    cmd_line[j] = cmd_line[j + 1];
+                }
+                cmd_line[j + 1] = '\0';
+                
+            }
+
+        } else {
+
+            is_prev_space = false;
+            i++;
+
+        }
+    }
+
+}
+
+/*
+
+    Input:  cmd_line: cleaned-up command line from user
+            *cmd: pointer to struct to be populated with parsed input
+    Output: *cmd is fully populated
 
 */
 
@@ -103,6 +158,7 @@ int exec_local_cmd_loop()
         cmd_buff[strcspn(cmd_buff, "\n")] = '\0';
 
         // TODO IMPLEMENT parsing input to cmd_buff_t *cmd_buff
+        clean_input(cmd_buff);
         int parse_rc = parse_input(cmd_buff, &cmd);
 
         if (parse_rc == ERR_TOO_MANY_COMMANDS) {
