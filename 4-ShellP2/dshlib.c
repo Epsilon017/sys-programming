@@ -8,6 +8,26 @@
 #include <sys/wait.h>
 #include "dshlib.h"
 
+
+/*
+
+    Input:  cmd_line: command line from user (null-terminated, no newline)
+            *cmd: pointer to struct to be populated with parsed input
+    Output: *cmd is fully populated
+
+    Trim ALL leading and trailing spaces
+    Eliminate duplicate spaces UNLESS they are in a quoted string
+    Account for quoted strings in input; treat a quoted string with spaces as a single argument
+
+*/
+
+int parse_input(char* cmd_line, cmd_buff_t* cmd) {
+
+    // TO BE IMPLEMENTED
+    return -99;
+
+}
+
 /*
  * Implement your exec_local_cmd_loop function by building a loop that prompts the 
  * user for input.  Use the SH_PROMPT constant from dshlib.h and then
@@ -53,19 +73,55 @@
  */
 int exec_local_cmd_loop()
 {
-    char *cmd_buff;
+    char cmd_buff[SH_CMD_MAX];
     int rc = 0;
     cmd_buff_t cmd;
 
+
     // TODO IMPLEMENT MAIN LOOP
+    while (1) {
 
-    // TODO IMPLEMENT parsing input to cmd_buff_t *cmd_buff
+        printf("%s", SH_PROMPT);
 
-    // TODO IMPLEMENT if built-in command, execute builtin logic for exit, cd (extra credit: dragon)
-    // the cd command should chdir to the provided directory; if no directory is provided, do nothing
+        if (fgets(cmd_buff, SH_CMD_MAX, stdin) == NULL) { // for running headless
+            printf("\n");
+            break;
+        }
 
-    // TODO IMPLEMENT if not built-in command, fork/exec as an external command
-    // for example, if the user input is "ls -l", you would fork/exec the command "ls" with the arg "-l"
+        if (!strchr(cmd_buff, '\n')) {
+
+            // input was way too long, clear input stream and ignore
+            char c = 0;
+            while (c != '\n' && c != EOF) {
+                c = getchar();
+            }
+            continue;
+
+        }
+
+        // remove the trailing \n from cmd_buff
+        cmd_buff[strcspn(cmd_buff, "\n")] = '\0';
+
+        // TODO IMPLEMENT parsing input to cmd_buff_t *cmd_buff
+        int parse_rc = parse_input(cmd_buff, &cmd);
+
+        if (parse_rc == ERR_TOO_MANY_COMMANDS) {
+            printf(CMD_ERR_PIPE_LIMIT, CMD_MAX);
+            continue;
+        }
+
+        if (cmd.argc == 0) {
+            printf(CMD_WARN_NO_CMD);
+            continue;
+        }
+
+        // TODO IMPLEMENT if built-in command, execute builtin logic for exit, cd (extra credit: dragon)
+        // the cd command should chdir to the provided directory; if no directory is provided, do nothing
+
+        // TODO IMPLEMENT if not built-in command, fork/exec as an external command
+        // for example, if the user input is "ls -l", you would fork/exec the command "ls" with the arg "-l"
+    
+    }
 
     return OK;
 }
