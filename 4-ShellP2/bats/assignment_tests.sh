@@ -17,7 +17,7 @@
 @test "Change directory" {
     current=$(pwd)
 
-    cd /tmp
+    cd .
     mkdir -p dsh-test
 
     run "${current}/dsh.out" <<EOF                
@@ -29,7 +29,7 @@ EOF
     stripped_output=$(echo "$output" | tr -d '[:space:]')
 
     # Expected output with all whitespace removed for easier matching
-    expected_output="/tmp/dsh-testdsh2>dsh2>dsh2>cmdloopreturned0"
+    expected_output="/home/rwf43/cs283/sys-programming/4-ShellP2/dsh-testdsh2>dsh2>dsh2>cmdloopreturned0"
 
     # These echo commands will help with debugging and will only print
     #if the test fails
