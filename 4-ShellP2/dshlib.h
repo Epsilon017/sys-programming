@@ -47,8 +47,8 @@ typedef struct command{
 #define OK_EXIT                 -7
 
 //prototypes
-int alloc_cmd_buff(cmd_buff_t *cmd_buff);
-int free_cmd_buff(cmd_buff_t *cmd_buff);
+int alloc_cmd_buff(cmd_buff_t *cmd_buff); // still not dynamically allocating, so don't need this for now
+int free_cmd_buff(cmd_buff_t *cmd_buff); // still not dynamically allocating, so don't need this for now
 int clear_cmd_buff(cmd_buff_t *cmd_buff);
 int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff);
 

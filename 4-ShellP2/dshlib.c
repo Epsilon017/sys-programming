@@ -150,6 +150,15 @@ int parse_input(char* cmd_line, cmd_buff_t* cmd) {
 }
 
 
+int clear_cmd_buff(cmd_buff_t* cmd_buff) {
+
+    cmd_buff->argc = 0;
+    memset(cmd_buff->argv, 0, sizeof(cmd_buff->argv));
+    return OK;
+
+}
+
+
 /*
 
     Input: command string, usually argv[0]
@@ -286,7 +295,6 @@ int exec_local_cmd_loop()
 
         // parse input to cmd_buff_t *cmd_buff
         clean_input(cmd_buff);
-        memset(&cmd, 0, sizeof(cmd));
         int parse_rc = parse_input(cmd_buff, &cmd);
 
         if (parse_rc == ERR_TOO_MANY_COMMANDS) {
