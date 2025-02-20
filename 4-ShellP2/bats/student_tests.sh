@@ -132,3 +132,29 @@ EOF
 
     [[ "$output" == *"Permission denied"* ]]
 }
+
+@test "rc a good return code (0)" {
+
+    run ./dsh.out <<EOF
+cd
+rc
+EOF
+
+    echo "Captured stdout:"
+    echo "$output"
+
+    [[ "$output" == *"0"* ]]
+}
+
+@test "rc a bad return code (2)" {
+
+    run ./dsh.out <<EOF
+nonexistentcommand
+rc
+EOF
+
+    echo "Captured stdout:"
+    echo "$output"
+
+    [[ "$output" == *"2"* ]]
+}
