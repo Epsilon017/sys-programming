@@ -109,3 +109,26 @@ EOF
     
     [ "$status" -eq 0 ]
 }
+
+@test "Command not found (ENOENT)" {
+    run ./dsh.out <<EOF
+nonexistentcommand
+EOF
+
+    echo "Captured stdout:"
+    echo "$output"
+
+    [[ "$output" == *"Command not found in PATH"* ]]
+}
+
+@test "Permission denied (EACCES)" {
+
+    run ./dsh.out <<EOF
+./dsh_cli.c
+EOF
+
+    echo "Captured stdout:"
+    echo "$output"
+
+    [[ "$output" == *"Permission denied"* ]]
+}
