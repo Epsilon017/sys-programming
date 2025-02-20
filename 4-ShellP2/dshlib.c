@@ -15,6 +15,8 @@
 
 extern void print_dragon();
 
+int last_rc = 0;
+
 /*
 
     Input: a string of user input
@@ -180,6 +182,10 @@ Built_In_Cmds match_command(const char *cmd) {
         return BI_CMD_CD;
     }
 
+    if (strcmp(cmd, "rc") == 0) {
+        return BI_RC;
+    }
+
     return BI_NOT_BI;
 
 }
@@ -209,6 +215,10 @@ Built_In_Cmds exec_built_in_cmd(cmd_buff_t* cmd_buff) {
         case BI_CMD_CD:
             // the cd command should chdir to the provided directory; if no directory is provided, do nothing
             if (cmd_buff->argc >= 2) chdir(cmd_buff->argv[1]);
+            break;
+        
+        case BI_RC:
+            printf("%d\n", last_rc);
             break;
         
         default:
@@ -267,7 +277,6 @@ Built_In_Cmds exec_built_in_cmd(cmd_buff_t* cmd_buff) {
 int exec_local_cmd_loop()
 {
     char cmd_buff[SH_CMD_MAX];
-    int rc = 0;
     cmd_buff_t cmd;
 
 
@@ -312,7 +321,10 @@ int exec_local_cmd_loop()
 
         // if built-in command, execute builtin logic for exit, cd (extra credit: dragon)
         Built_In_Cmds built_in_rc = exec_built_in_cmd(&cmd);
-        if (built_in_rc == BI_EXECUTED) continue;
+        if (built_in_rc == BI_EXECUTED) {
+            last_rc = 0;
+            continue;
+        }
 
         // TODO IMPLEMENT if not built-in command, fork/exec as an external command
         // for example, if the user input is "ls -l", you would fork/exec the command "ls" with the arg "-l"
@@ -333,6 +345,7 @@ int exec_local_cmd_loop()
             int child_result;
             wait(&child_result);
             int child_rc = WEXITSTATUS(child_result);
+            last_rc = child_rc;
 
             if (child_rc != 0) {
                 switch(child_rc) {

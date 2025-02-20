@@ -70,7 +70,6 @@ int exec_cmd(cmd_buff_t *cmd);
 
 
 
-
 //output constants
 #define CMD_OK_HEADER       "PARSED COMMAND LINE - TOTAL COMMANDS %d\n"
 #define CMD_WARN_NO_CMD     "warning: no commands provided\n"
