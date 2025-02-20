@@ -8,6 +8,11 @@
 #include <sys/wait.h>
 #include "dshlib.h"
 
+// strtok and strsep want strings, not chars, so let's convert in a somewhat creative way
+#define PIPE_STR (char[2]) { (char) PIPE_CHAR, '\0' }
+#define SPACE_STR (char[2]) { (char) SPACE_CHAR, '\0' }
+
+
 
 /*
 
@@ -23,7 +28,18 @@
 void clean_input(char* cmd_line) {
 
     // trim leading whitespace
-    while (*cmd_line == SPACE_CHAR) cmd_line++;
+    int start = 0;
+    while (cmd_line[start] == ' ') start++;
+
+    if (start != 0) {
+
+        int i;
+        for (i = 0; cmd_line[start + i] != '\0'; i++) {
+            cmd_line[i] = cmd_line[start + i];
+        }
+        cmd_line[i] = '\0';
+
+    }
 
     // trim tailing whitespace
     char* end = cmd_line + strlen(cmd_line) - 1;
@@ -68,6 +84,7 @@ void clean_input(char* cmd_line) {
 
 }
 
+
 /*
 
     Input:  cmd_line: cleaned-up command line from user
@@ -78,8 +95,56 @@ void clean_input(char* cmd_line) {
 
 int parse_input(char* cmd_line, cmd_buff_t* cmd) {
 
-    // TO BE IMPLEMENTED
-    return -99;
+    char* cmd_copy = strdup(cmd_line);
+
+    char* ptr = cmd_copy;
+    cmd->argc = 0;
+
+    while (*ptr) {
+
+        while (*ptr && isspace((unsigned char)*ptr)) ptr++; // skip leading spaces, some may appear while tokenizing
+
+        if (*ptr == '\0') break;
+
+        char* start = ptr;
+        char* token;
+
+        // handle quotation marks
+        if (*ptr == '"') {
+
+            ptr++;  // skip first quote
+            start = ptr;
+            while (*ptr && *ptr != '"') ptr++; // traverse until next quotation mark or end of string
+            if (*ptr == '"') {
+                *ptr = '\0';
+                ptr++;
+            }
+
+        } else {
+
+            while (*ptr && *ptr != ' ') ptr++; // skip spaces
+            if (*ptr) *ptr++ = '\0';
+            
+        }
+
+        token = strdup(start);
+
+        if (cmd->argc >= ARG_MAX) {
+            free(token);
+            free(cmd_copy);
+            return ERR_CMD_OR_ARGS_TOO_BIG;
+        }
+
+        cmd->argv[cmd->argc++] = token;
+    }
+
+    if (cmd->argc == 0) {
+        free(cmd_copy);
+        return WARN_NO_CMDS;
+    }
+
+    free(cmd_copy);
+    return OK;
 
 }
 
@@ -159,6 +224,7 @@ int exec_local_cmd_loop()
 
         // TODO IMPLEMENT parsing input to cmd_buff_t *cmd_buff
         clean_input(cmd_buff);
+        memset(&cmd, 0, sizeof(cmd));
         int parse_rc = parse_input(cmd_buff, &cmd);
 
         if (parse_rc == ERR_TOO_MANY_COMMANDS) {
