@@ -94,7 +94,7 @@ void clean_input(char* cmd_line) {
 
 */
 
-int parse_input(char* cmd_line, cmd_buff_t* cmd) {
+int build_cmd_buff(char* cmd_line, cmd_buff_t* cmd) {
 
     char* cmd_copy = strdup(cmd_line);
 
@@ -295,7 +295,7 @@ int exec_local_cmd_loop()
 
         // parse input to cmd_buff_t *cmd_buff
         clean_input(cmd_buff);
-        int parse_rc = parse_input(cmd_buff, &cmd);
+        int parse_rc = build_cmd_buff(cmd_buff, &cmd);
 
         if (parse_rc == ERR_TOO_MANY_COMMANDS) {
             printf(CMD_ERR_PIPE_LIMIT, CMD_MAX);
