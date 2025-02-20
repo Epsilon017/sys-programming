@@ -7,13 +7,12 @@
 #include <fcntl.h>
 #include <sys/wait.h>
 #include "dshlib.h"
-#include "dragon.c"
 
 // strtok and strsep want strings, not chars, so let's convert in a somewhat creative way
 #define PIPE_STR (char[2]) { (char) PIPE_CHAR, '\0' }
 #define SPACE_STR (char[2]) { (char) SPACE_CHAR, '\0' }
 
-
+extern void print_dragon();
 
 /*
 
