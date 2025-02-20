@@ -206,6 +206,7 @@ Built_In_Cmds exec_built_in_cmd(cmd_buff_t* cmd_buff) {
             break;
         
         case BI_CMD_CD:
+            // the cd command should chdir to the provided directory; if no directory is provided, do nothing
             if (cmd_buff->argc >= 2) chdir(cmd_buff->argv[1]);
             break;
         
@@ -217,6 +218,7 @@ Built_In_Cmds exec_built_in_cmd(cmd_buff_t* cmd_buff) {
     return BI_EXECUTED;
 
 }
+
 
 /*
  * Implement your exec_local_cmd_loop function by building a loop that prompts the 
@@ -294,6 +296,7 @@ int exec_local_cmd_loop()
 
         // parse input to cmd_buff_t *cmd_buff
         clean_input(cmd_buff);
+        clear_cmd_buff(&cmd);
         int parse_rc = build_cmd_buff(cmd_buff, &cmd);
 
         if (parse_rc == ERR_TOO_MANY_COMMANDS) {
@@ -306,13 +309,33 @@ int exec_local_cmd_loop()
             continue;
         }
 
-        // TODO IMPLEMENT if built-in command, execute builtin logic for exit, cd (extra credit: dragon)
-        // the cd command should chdir to the provided directory; if no directory is provided, do nothing
+        // if built-in command, execute builtin logic for exit, cd (extra credit: dragon)
         Built_In_Cmds built_in_rc = exec_built_in_cmd(&cmd);
         if (built_in_rc == BI_EXECUTED) continue;
 
         // TODO IMPLEMENT if not built-in command, fork/exec as an external command
         // for example, if the user input is "ls -l", you would fork/exec the command "ls" with the arg "-l"
+        pid_t fork_rc = fork();
+        if (fork_rc < 0) {
+            continue;
+        }
+
+        if (fork_rc == 0) {
+
+            // child
+            int exec_rc = execvp(cmd.argv[0], cmd.argv);
+            if (exec_rc < 0) {
+                exit(ERR_EXEC_CMD);
+            }
+
+        } else {
+
+            // parent
+            int child_result;
+            wait(&child_result);
+            int child_rc = WEXITSTATUS(child_result);
+
+        }
     
     }
 
