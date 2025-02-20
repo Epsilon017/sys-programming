@@ -35,6 +35,8 @@ typedef struct command{
 
 #define SH_PROMPT "dsh2> "
 #define EXIT_CMD "exit"
+#define DRAGON_CMD "dragon"
+#define CD_CMD "cd"
 
 //Standard Return Codes
 #define OK                       0

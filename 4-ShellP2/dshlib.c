@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <sys/wait.h>
 #include "dshlib.h"
+#include "dragon.c"
 
 // strtok and strsep want strings, not chars, so let's convert in a somewhat creative way
 #define PIPE_STR (char[2]) { (char) PIPE_CHAR, '\0' }
@@ -148,6 +149,13 @@ int parse_input(char* cmd_line, cmd_buff_t* cmd) {
 
 }
 
+
+int change_directory(char* dir) {
+
+    return chdir(dir);
+
+}
+
 /*
  * Implement your exec_local_cmd_loop function by building a loop that prompts the 
  * user for input.  Use the SH_PROMPT constant from dshlib.h and then
@@ -222,7 +230,7 @@ int exec_local_cmd_loop()
         // remove the trailing \n from cmd_buff
         cmd_buff[strcspn(cmd_buff, "\n")] = '\0';
 
-        // TODO IMPLEMENT parsing input to cmd_buff_t *cmd_buff
+        // parse input to cmd_buff_t *cmd_buff
         clean_input(cmd_buff);
         memset(&cmd, 0, sizeof(cmd));
         int parse_rc = parse_input(cmd_buff, &cmd);
@@ -232,13 +240,25 @@ int exec_local_cmd_loop()
             continue;
         }
 
-        if (cmd.argc == 0) {
+        if (parse_rc == WARN_NO_CMDS) {
             printf(CMD_WARN_NO_CMD);
             continue;
         }
 
         // TODO IMPLEMENT if built-in command, execute builtin logic for exit, cd (extra credit: dragon)
         // the cd command should chdir to the provided directory; if no directory is provided, do nothing
+        if (strcmp(cmd.argv[0], EXIT_CMD) == 0) {
+            break;
+        }
+
+        if (strcmp(cmd.argv[0], DRAGON_CMD) == 0) {
+            print_dragon();
+            continue;
+        }
+
+        if (strcmp(cmd.argv[0], CD_CMD) == 0) {
+            change_directory(cmd.argv[1]);
+        }
 
         // TODO IMPLEMENT if not built-in command, fork/exec as an external command
         // for example, if the user input is "ls -l", you would fork/exec the command "ls" with the arg "-l"
