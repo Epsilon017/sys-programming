@@ -150,9 +150,63 @@ int parse_input(char* cmd_line, cmd_buff_t* cmd) {
 }
 
 
-int change_directory(char* dir) {
+/*
 
-    return chdir(dir);
+    Input: command string, usually argv[0]
+    Return: corresponding enumerated value
+
+*/
+
+Built_In_Cmds match_command(const char *cmd) {
+
+    if (strcmp(cmd, "exit") == 0) {
+        return BI_CMD_EXIT;
+    }
+
+    if (strcmp(cmd, "dragon") == 0) {
+        return BI_CMD_DRAGON;
+    }
+
+    if (strcmp(cmd, "cd") == 0) {
+        return BI_CMD_CD;
+    }
+
+    return BI_NOT_BI;
+
+}
+
+
+/*
+
+    Input: cmd_buff_t that should be executed
+    Return: BI_EXECUTED: ran correctly
+            BI_NOT_BI: not a recognized built-in command
+
+*/
+
+Built_In_Cmds exec_built_in_cmd(cmd_buff_t* cmd_buff) {
+
+    Built_In_Cmds cmd = match_command(cmd_buff->argv[0]);
+
+    switch (cmd) {
+
+        case BI_CMD_EXIT:
+            exit(0);
+        
+        case BI_CMD_DRAGON:
+            print_dragon();
+            break;
+        
+        case BI_CMD_CD:
+            if (cmd_buff->argc >= 2) chdir(cmd_buff->argv[1]);
+            break;
+        
+        default:
+            return BI_NOT_BI;
+
+    }
+
+    return BI_EXECUTED;
 
 }
 
@@ -247,18 +301,8 @@ int exec_local_cmd_loop()
 
         // TODO IMPLEMENT if built-in command, execute builtin logic for exit, cd (extra credit: dragon)
         // the cd command should chdir to the provided directory; if no directory is provided, do nothing
-        if (strcmp(cmd.argv[0], EXIT_CMD) == 0) {
-            break;
-        }
-
-        if (strcmp(cmd.argv[0], DRAGON_CMD) == 0) {
-            print_dragon();
-            continue;
-        }
-
-        if (strcmp(cmd.argv[0], CD_CMD) == 0) {
-            change_directory(cmd.argv[1]);
-        }
+        Built_In_Cmds built_in_rc = exec_built_in_cmd(&cmd);
+        if (built_in_rc == BI_EXECUTED) continue;
 
         // TODO IMPLEMENT if not built-in command, fork/exec as an external command
         // for example, if the user input is "ls -l", you would fork/exec the command "ls" with the arg "-l"

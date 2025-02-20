@@ -35,8 +35,6 @@ typedef struct command{
 
 #define SH_PROMPT "dsh2> "
 #define EXIT_CMD "exit"
-#define DRAGON_CMD "dragon"
-#define CD_CMD "cd"
 
 //Standard Return Codes
 #define OK                       0
@@ -55,7 +53,7 @@ int clear_cmd_buff(cmd_buff_t *cmd_buff);
 int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff);
 
 //built in command stuff
-typedef enum {
+typedef enum built_in_cmds {
     BI_CMD_EXIT,
     BI_CMD_DRAGON,
     BI_CMD_CD,
