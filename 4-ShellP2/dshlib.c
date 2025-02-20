@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <sys/wait.h>
 #include "dshlib.h"
+#include <errno.h>
 
 // strtok and strsep want strings, not chars, so let's convert in a somewhat creative way
 #define PIPE_STR (char[2]) { (char) PIPE_CHAR, '\0' }
@@ -323,10 +324,8 @@ int exec_local_cmd_loop()
         if (fork_rc == 0) {
 
             // child
-            int exec_rc = execvp(cmd.argv[0], cmd.argv);
-            if (exec_rc < 0) {
-                exit(ERR_EXEC_CMD);
-            }
+            execvp(cmd.argv[0], cmd.argv);
+            exit(errno);
 
         } else {
 
@@ -334,6 +333,33 @@ int exec_local_cmd_loop()
             int child_result;
             wait(&child_result);
             int child_rc = WEXITSTATUS(child_result);
+
+            if (child_rc != 0) {
+                switch(child_rc) {
+                    case ENOENT:
+                        printf(CMD_ERR_EXECUTE, "Command not found in PATH\n");
+                        break;
+                    
+                    case EACCES:
+                        printf(CMD_ERR_EXECUTE, "Permission denied\n");
+                        break;
+                    
+                    case ENOTDIR:
+                        printf(CMD_ERR_EXECUTE, "Invalid path\n");
+                        break;
+
+                    case EISDIR:
+                        printf(CMD_ERR_EXECUTE, "Unable to execute directory\n");
+                        break;
+                    
+                    case ENOMEM:
+                        printf(CMD_ERR_EXECUTE, "Not enough memory to execute\n");
+                        break;
+                    
+                    default:
+                        printf(CMD_ERR_EXECUTE, "Execution failed\n");
+                }
+            }
 
         }
     
