@@ -12,6 +12,86 @@
 
 int last_rc = 0;
 
+// strtok and strsep want strings, not chars, so let's convert in a somewhat creative way
+#define PIPE_STR (char[2]) { (char) PIPE_CHAR, '\0' }
+#define SPACE_STR (char[2]) { (char) SPACE_CHAR, '\0' }
+
+extern void print_dragon();
+
+int last_rc = 0;
+
+/*
+
+    Input: a string of user input
+    Output: mutates input into clean, standardized input
+
+    Trim ALL leading and trailing spaces
+    Eliminate duplicate spaces UNLESS they are in a quoted string
+    Account for quoted strings in input; treat a quoted string with spaces as a single argument
+
+*/
+
+void clean_input(char* cmd_line) {
+
+    // trim leading whitespace
+    int start = 0;
+    while (cmd_line[start] == ' ') start++;
+
+    if (start != 0) {
+
+        int i;
+        for (i = 0; cmd_line[start + i] != '\0'; i++) {
+            cmd_line[i] = cmd_line[start + i];
+        }
+        cmd_line[i] = '\0';
+
+    }
+
+    // trim tailing whitespace
+    char* end = cmd_line + strlen(cmd_line) - 1;
+    while (end > cmd_line && *end == SPACE_CHAR) {
+        *end = '\0';
+        end--;
+    }
+
+    // eliminate duplicate spaces, excluding those inside quotes
+    size_t i = 0;
+    bool is_prev_space = false;
+    bool is_in_quotes = false;
+    while (i < strlen(cmd_line)) {
+
+        if (cmd_line[i] == '"') {
+            is_in_quotes = !is_in_quotes;
+        }
+
+        if (cmd_line[i] == ' ' && !is_in_quotes) {
+
+            if (!is_prev_space) {
+                is_prev_space = true;
+                i++;
+            } else {
+                
+                // duplicate space found, delete
+                size_t j;
+                for (j = i; j < strlen(cmd_line); j++) {
+                    cmd_line[j] = cmd_line[j + 1];
+                }
+                cmd_line[j + 1] = '\0';
+                
+            }
+
+        } else {
+
+            is_prev_space = false;
+            i++;
+
+        }
+    }
+
+}
+
+
+
 /*
  * Implement your exec_local_cmd_loop function by building a loop that prompts the 
  * user for input.  Use the SH_PROMPT constant from dshlib.h and then
