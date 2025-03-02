@@ -3,7 +3,7 @@ CC = gcc
 CFLAGS = -Wall -Wextra -g
 
 # Target executable name
-TARGET = dsh
+TARGET = dsh.out
 
 # Find all source and header files
 SRCS = $(wildcard *.c)
