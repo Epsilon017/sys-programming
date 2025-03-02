@@ -18,8 +18,6 @@ int last_rc = 0;
 
 extern void print_dragon();
 
-int last_rc = 0;
-
 /*
 
     Input: a string of user input
