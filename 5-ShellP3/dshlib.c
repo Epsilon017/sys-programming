@@ -162,6 +162,75 @@ int clear_cmd_buff(cmd_buff_t* cmd_buff) {
     return OK;
 
 }
+
+
+/*
+
+    Input: command string, usually argv[0]
+    Return: corresponding enumerated value
+
+*/
+
+Built_In_Cmds match_command(const char *cmd) {
+
+    if (strcmp(cmd, "exit") == 0) {
+        return BI_CMD_EXIT;
+    }
+
+    if (strcmp(cmd, "dragon") == 0) {
+        return BI_CMD_DRAGON;
+    }
+
+    if (strcmp(cmd, "cd") == 0) {
+        return BI_CMD_CD;
+    }
+
+    if (strcmp(cmd, "rc") == 0) {
+        return BI_RC;
+    }
+
+    return BI_NOT_BI;
+
+}
+
+
+/*
+
+    Input: cmd_buff_t that should be executed
+    Return: BI_EXECUTED: ran correctly
+            BI_NOT_BI: not a recognized built-in command
+
+*/
+
+Built_In_Cmds exec_built_in_cmd(cmd_buff_t* cmd_buff) {
+
+    Built_In_Cmds cmd = match_command(cmd_buff->argv[0]);
+
+    switch (cmd) {
+
+        case BI_CMD_EXIT:
+            exit(0);
+        
+        case BI_CMD_DRAGON:
+            print_dragon();
+            break;
+        
+        case BI_CMD_CD:
+            // the cd command should chdir to the provided directory; if no directory is provided, do nothing
+            if (cmd_buff->argc >= 2) chdir(cmd_buff->argv[1]);
+            break;
+        
+        case BI_RC:
+            printf("%d\n", last_rc);
+            break;
+        
+        default:
+            return BI_NOT_BI;
+
+    }
+
+    return BI_EXECUTED;
+
 }
 
 /*
