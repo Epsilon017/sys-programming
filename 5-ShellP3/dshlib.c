@@ -91,6 +91,78 @@ void clean_input(char* cmd_line) {
 }
 
 
+/*
+
+    Input:  cmd_line: cleaned-up command line from user
+            *cmd: pointer to struct to be populated with parsed input
+    Output: *cmd is fully populated
+
+*/
+
+int build_cmd_buff(char* cmd_line, cmd_buff_t* cmd) {
+
+    char* cmd_copy = strdup(cmd_line);
+
+    char* ptr = cmd_copy;
+    cmd->argc = 0;
+
+    while (*ptr) {
+
+        while (*ptr && isspace((unsigned char)*ptr)) ptr++; // skip leading spaces, some may appear while tokenizing
+
+        if (*ptr == '\0') break;
+
+        char* start = ptr;
+        char* token;
+
+        // handle quotation marks
+        if (*ptr == '"') {
+
+            ptr++;  // skip first quote
+            start = ptr;
+            while (*ptr && *ptr != '"') ptr++; // traverse until next quotation mark or end of string
+            if (*ptr == '"') {
+                *ptr = '\0';
+                ptr++;
+            }
+
+        } else {
+
+            while (*ptr && *ptr != ' ') ptr++; // skip spaces
+            if (*ptr) *ptr++ = '\0';
+            
+        }
+
+        token = strdup(start);
+
+        if (cmd->argc >= ARG_MAX) {
+            free(token);
+            free(cmd_copy);
+            return ERR_CMD_OR_ARGS_TOO_BIG;
+        }
+
+        cmd->argv[cmd->argc++] = token;
+    }
+
+    if (cmd->argc == 0) {
+        free(cmd_copy);
+        return WARN_NO_CMDS;
+    }
+
+    free(cmd_copy);
+    return OK;
+
+}
+
+
+int clear_cmd_buff(cmd_buff_t* cmd_buff) {
+
+    cmd_buff->argc = 0;
+    memset(cmd_buff->argv, 0, sizeof(cmd_buff->argv));
+    return OK;
+
+}
+}
 
 /*
  * Implement your exec_local_cmd_loop function by building a loop that prompts the 
