@@ -342,7 +342,7 @@ Built_In_Cmds exec_built_in_cmd(cmd_buff_t* cmd_buff) {
 int exec_local_cmd_loop()
 {
     char cmd_buff[SH_CMD_MAX];
-    cmd_buff_t cmd;
+    command_list_t cmd_list;
 
 
     // TODO IMPLEMENT MAIN LOOP
@@ -369,10 +369,9 @@ int exec_local_cmd_loop()
         // remove the trailing \n from cmd_buff
         cmd_buff[strcspn(cmd_buff, "\n")] = '\0';
 
-        // parse input to cmd_buff_t *cmd_buff
+        // parse input to cmd_list
         clean_input(cmd_buff);
-        clear_cmd_buff(&cmd);
-        int parse_rc = build_cmd_buff(cmd_buff, &cmd);
+        int parse_rc = build_cmd_list(cmd_buff, &cmd_list);
 
         if (parse_rc == ERR_TOO_MANY_COMMANDS) {
             printf(CMD_ERR_PIPE_LIMIT, CMD_MAX);
@@ -384,62 +383,73 @@ int exec_local_cmd_loop()
             continue;
         }
 
-        // if built-in command, execute builtin logic for exit, cd (extra credit: dragon)
-        Built_In_Cmds built_in_rc = exec_built_in_cmd(&cmd);
-        if (built_in_rc == BI_EXECUTED) {
-            last_rc = 0;
+        if (parse_rc == ERR_CMD_OR_ARGS_TOO_BIG) {
+            printf(CMD_ERR_EXECUTE, "command or args too big");
             continue;
         }
 
-        // TODO IMPLEMENT if not built-in command, fork/exec as an external command
-        // for example, if the user input is "ls -l", you would fork/exec the command "ls" with the arg "-l"
-        pid_t fork_rc = fork();
-        if (fork_rc < 0) {
-            continue;
-        }
+        for (int i = 0; i < cmd_list.num; i++) { // processing cmd_list one command at a time
 
-        if (fork_rc == 0) {
+            cmd_buff_t* current_cmd = &cmd_list.commands[i];
 
-            // child
-            execvp(cmd.argv[0], cmd.argv);
-            exit(errno);
-
-        } else {
-
-            // parent
-            int child_result;
-            wait(&child_result);
-            int child_rc = WEXITSTATUS(child_result);
-            last_rc = child_rc;
-
-            if (child_rc != 0) {
-                switch(child_rc) {
-                    case ENOENT:
-                        printf(CMD_ERR_EXECUTE, "Command not found in PATH\n");
-                        break;
-                    
-                    case EACCES:
-                        printf(CMD_ERR_EXECUTE, "Permission denied\n");
-                        break;
-                    
-                    case ENOTDIR:
-                        printf(CMD_ERR_EXECUTE, "Invalid path\n");
-                        break;
-
-                    case EISDIR:
-                        printf(CMD_ERR_EXECUTE, "Unable to execute directory\n");
-                        break;
-                    
-                    case ENOMEM:
-                        printf(CMD_ERR_EXECUTE, "Not enough memory to execute\n");
-                        break;
-                    
-                    default:
-                        printf(CMD_ERR_EXECUTE, "Execution failed\n");
-                }
+            // if built-in command, execute builtin logic for exit, cd (extra credit: dragon)
+            Built_In_Cmds built_in_rc = exec_built_in_cmd(current_cmd);
+            if (built_in_rc == BI_EXECUTED) {
+                last_rc = 0;
+                continue;
             }
 
-        }
+            // TODO IMPLEMENT if not built-in command, fork/exec as an external command
+            // for example, if the user input is "ls -l", you would fork/exec the command "ls" with the arg "-l"
+            pid_t fork_rc = fork();
+            if (fork_rc < 0) {
+                continue;
+            }
+
+            if (fork_rc == 0) {
+
+                // child
+                execvp(current_cmd->argv[0], current_cmd->argv);
+                exit(errno);
+
+            } else {
+
+                // parent
+                int child_result;
+                wait(&child_result);
+                int child_rc = WEXITSTATUS(child_result);
+                last_rc = child_rc;
+
+                if (child_rc != 0) {
+                    switch(child_rc) {
+                        case ENOENT:
+                            printf(CMD_ERR_EXECUTE, "Command not found in PATH\n");
+                            break;
+                        
+                        case EACCES:
+                            printf(CMD_ERR_EXECUTE, "Permission denied\n");
+                            break;
+                        
+                        case ENOTDIR:
+                            printf(CMD_ERR_EXECUTE, "Invalid path\n");
+                            break;
+
+                        case EISDIR:
+                            printf(CMD_ERR_EXECUTE, "Unable to execute directory\n");
+                            break;
+                        
+                        case ENOMEM:
+                            printf(CMD_ERR_EXECUTE, "Not enough memory to execute\n");
+                            break;
+                        
+                        default:
+                            printf(CMD_ERR_EXECUTE, "Execution failed\n");
+                    }
+                }
+
+            }
+
+        } // for
     
     }
    
