@@ -13,7 +13,6 @@
 int last_rc = 0;
 
 // strtok and strsep want strings, not chars, so let's convert in a somewhat creative way
-#define PIPE_STR (char[2]) { (char) PIPE_CHAR, '\0' }
 #define SPACE_STR (char[2]) { (char) SPACE_CHAR, '\0' }
 
 extern void print_dragon();
@@ -157,6 +156,72 @@ int clear_cmd_buff(cmd_buff_t* cmd_buff) {
 
     cmd_buff->argc = 0;
     memset(cmd_buff->argv, 0, sizeof(cmd_buff->argv));
+    return OK;
+
+}
+
+
+
+/*
+ *  build_cmd_list
+ *    cmd_line:     the command line from the user
+ *    clist *:      pointer to clist structure to be populated
+ */
+int build_cmd_list(char *cmd_line, command_list_t *clist)
+{
+    
+    char* tokenized_commands[CMD_MAX] = {NULL};
+    char* cmd_copy = strdup(cmd_line);
+    char* current_command = strtok(cmd_copy, PIPE_STRING);
+    int i = 0;
+
+    // fill 'commands' with cmd_line tokenized by pipe
+    while (current_command != NULL) {
+
+        if (i >= CMD_MAX) {
+
+            // too many commands
+            free(cmd_copy);
+            return ERR_TOO_MANY_COMMANDS;
+
+        }
+
+        // trim leading whitespace
+        while (*current_command == SPACE_CHAR) {
+            current_command++;
+        }
+
+        // trim tailing whitespace
+        char* end = current_command + strlen(current_command) - 1;
+        while (end > current_command && *end == SPACE_CHAR) {
+            *end = '\0';
+            end--;
+        }
+
+        tokenized_commands[i] = strdup(current_command);
+        i++;
+        current_command = strtok(NULL, PIPE_STRING);
+
+    }
+
+    // fill 'clist' with command buffs
+
+    for (int j = 0; j < i; j++) {
+
+        cmd_buff_t current_buff;
+        clear_cmd_buff(&current_buff);
+        int build_buff_rc = build_cmd_buff(tokenized_commands[j], &current_buff);
+
+        if (build_buff_rc == OK) {
+            clist->commands[j] = current_buff;
+        } else {
+            return build_buff_rc;
+        }
+        
+    }
+
+    clist->num = i;
+
     return OK;
 
 }
