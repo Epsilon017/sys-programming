@@ -8,7 +8,7 @@
             "name": "Launch file",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${fileDirname}/${fileBasenameNoExtension}.out",
+            "program": "${fileDirname}/dsh.out",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
