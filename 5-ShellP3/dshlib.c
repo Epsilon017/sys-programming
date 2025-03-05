@@ -455,7 +455,16 @@ int exec_local_cmd_loop()
                     close(pipe_fd[1]);
                 }
 
-                // execute the command
+                // check if built-in
+                if (match_command(cmd_list.commands[i].argv[0]) != BI_NOT_BI) {
+                    Built_In_Cmds built_in_rc = exec_built_in_cmd(&cmd_list.commands[i]);
+                    if (built_in_rc == BI_EXECUTED) {
+                        exit(0);
+                    }
+                    exit(-1);
+                }
+
+                // execute external the command
                 execvp(cmd_list.commands[i].argv[0], cmd_list.commands[i].argv);
                 exit(errno);
             } else {
