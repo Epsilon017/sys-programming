@@ -345,7 +345,7 @@ int exec_local_cmd_loop()
     command_list_t cmd_list;
 
 
-    // TODO IMPLEMENT MAIN LOOP
+    // MAIN LOOP
     while (1) {
 
         printf("%s", SH_PROMPT);
@@ -388,70 +388,127 @@ int exec_local_cmd_loop()
             continue;
         }
 
-        for (int i = 0; i < cmd_list.num; i++) { // processing cmd_list one command at a time
-
-            cmd_buff_t* current_cmd = &cmd_list.commands[i];
-
-            // if built-in command, execute builtin logic for exit, cd (extra credit: dragon)
+        // if there's only one command, try to execute built-in first
+        if (cmd_list.num == 1) {
+            cmd_buff_t* current_cmd = &cmd_list.commands[0];
             Built_In_Cmds built_in_rc = exec_built_in_cmd(current_cmd);
             if (built_in_rc == BI_EXECUTED) {
                 last_rc = 0;
                 continue;
             }
+        }
 
-            // TODO IMPLEMENT if not built-in command, fork/exec as an external command
-            // for example, if the user input is "ls -l", you would fork/exec the command "ls" with the arg "-l"
-            pid_t fork_rc = fork();
-            if (fork_rc < 0) {
-                continue;
+        // process external and piped commands
+        int prev_fd = -1;  // holds the read end of the previous pipe
+        pid_t pids[CMD_MAX]; // store child PIDs for later
+
+        for (int i = 0; i < cmd_list.num; i++) {
+
+            int pipe_fd[2];
+            // create a new pipe for all but the last command
+            if (i < cmd_list.num - 1) {
+                if (pipe(pipe_fd) < 0) {
+                    printf(CMD_ERR_EXECUTE, "pipe failed");
+                    break;
+                }
             }
 
-            if (fork_rc == 0) {
+            pid_t pid = fork();
+            if (pid < 0) {
 
+                printf(CMD_ERR_EXECUTE, "fork failed");
+
+                // close any pipe we created
+                if (i < cmd_list.num - 1) {
+                    close(pipe_fd[0]);
+                    close(pipe_fd[1]);
+                }
+                break;
+
+            }
+
+            if (pid == 0) {
                 // child
-                execvp(current_cmd->argv[0], current_cmd->argv);
-                exit(errno);
 
-            } else {
-
-                // parent
-                int child_result;
-                wait(&child_result);
-                int child_rc = WEXITSTATUS(child_result);
-                last_rc = child_rc;
-
-                if (child_rc != 0) {
-                    switch(child_rc) {
-                        case ENOENT:
-                            printf(CMD_ERR_EXECUTE, "Command not found in PATH\n");
-                            break;
-                        
-                        case EACCES:
-                            printf(CMD_ERR_EXECUTE, "Permission denied\n");
-                            break;
-                        
-                        case ENOTDIR:
-                            printf(CMD_ERR_EXECUTE, "Invalid path\n");
-                            break;
-
-                        case EISDIR:
-                            printf(CMD_ERR_EXECUTE, "Unable to execute directory\n");
-                            break;
-                        
-                        case ENOMEM:
-                            printf(CMD_ERR_EXECUTE, "Not enough memory to execute\n");
-                            break;
-                        
-                        default:
-                            printf(CMD_ERR_EXECUTE, "Execution failed\n");
+                // if not the first command, set STDIN to the previous pipe's read end
+                if (prev_fd != -1) {
+                    if (dup2(prev_fd, STDIN_FILENO) < 0) {
+                        perror("dup2");
+                        exit(errno);
                     }
                 }
 
-            }
+                // if not the last command, set STDOUT to the current pipe's write end
+                if (i < cmd_list.num - 1) {
+                    if (dup2(pipe_fd[1], STDOUT_FILENO) < 0) {
+                        perror("dup2");
+                        exit(errno);
+                    }
+                }
 
+                // close any file descriptors that are no longer needed
+                if (prev_fd != -1) {
+                    close(prev_fd);
+                }
+                if (i < cmd_list.num - 1) {
+                    close(pipe_fd[0]);
+                    close(pipe_fd[1]);
+                }
+
+                // execute the command
+                execvp(cmd_list.commands[i].argv[0], cmd_list.commands[i].argv);
+                exit(errno);
+            } else {
+                // parent
+
+                pids[i] = pid;
+
+                // close the previous pipe's read end in the parent since it's no longer needed
+                if (prev_fd != -1) {
+                    close(prev_fd);
+                }
+
+                // if not the last command, prepare for next
+                if (i < cmd_list.num - 1) {
+
+                    prev_fd = pipe_fd[0];
+                    close(pipe_fd[1]);
+
+                }
+            }
         } // for
-    
-    }
-   
+
+        // wait for all child processes to exit
+        for (int i = 0; i < cmd_list.num; i++) {
+            int child_status;
+            waitpid(pids[i], &child_status, 0);
+            last_rc = WEXITSTATUS(child_status);
+
+            if (last_rc != 0) {
+                switch(last_rc) {
+                    case ENOENT:
+                        printf(CMD_ERR_EXECUTE, "Command not found in PATH\n");
+                        break;
+                    case EACCES:
+                        printf(CMD_ERR_EXECUTE, "Permission denied\n");
+                        break;
+                    case ENOTDIR:
+                        printf(CMD_ERR_EXECUTE, "Invalid path\n");
+                        break;
+                    case EISDIR:
+                        printf(CMD_ERR_EXECUTE, "Unable to execute directory\n");
+                        break;
+                    case ENOMEM:
+                        printf(CMD_ERR_EXECUTE, "Not enough memory to execute\n");
+                        break;
+                    default:
+                        printf(CMD_ERR_EXECUTE, "Execution failed\n");
+                }
+            }
+        }
+
+    } // while
+
     return OK;
+
 }
