@@ -1,6 +1,7 @@
 #ifndef __DSHLIB_H__
     #define __DSHLIB_H__
 
+#include <stdbool.h>
 
 //Constants for command structure sizes
 #define EXE_MAX 64
@@ -21,6 +22,9 @@ typedef struct cmd_buff
     int  argc;
     char *argv[CMD_ARGV_MAX];
     char *_cmd_buffer;
+    char *infile;
+    char *outfile;
+    bool append;
 } cmd_buff_t;
 
 /* WIP - Move to next assignment 
@@ -55,7 +59,8 @@ typedef struct command_list{
 #define ERR_CMD_ARGS_BAD        -4      //for extra credit
 #define ERR_MEMORY              -5
 #define ERR_EXEC_CMD            -6
-#define OK_EXIT                 -7
+#define ERR_BAD_REDIRECT        -7
+#define OK_EXIT                 -8
 
 //prototypes
 int alloc_cmd_buff(cmd_buff_t *cmd_buff); // still not dynamically allocating, so don't need this for now
@@ -91,5 +96,6 @@ int execute_pipeline(command_list_t *clist);
 #define CMD_WARN_NO_CMD     "warning: no commands provided\n"
 #define CMD_ERR_PIPE_LIMIT  "error: piping limited to %d commands\n"
 #define CMD_ERR_EXECUTE     "error: %s"
+#define CMD_ERR_REDIRECT    "error: bad redirect syntax"
 
 #endif

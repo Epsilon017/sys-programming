@@ -102,6 +102,9 @@ int build_cmd_buff(char* cmd_line, cmd_buff_t* cmd) {
 
     char* ptr = cmd_copy;
     cmd->argc = 0;
+    cmd->infile = NULL;
+    cmd->outfile = NULL;
+    cmd->append = false;
 
     while (*ptr) {
 
@@ -132,16 +135,86 @@ int build_cmd_buff(char* cmd_line, cmd_buff_t* cmd) {
 
         token = strdup(start);
 
-        if (cmd->argc >= ARG_MAX) {
-            free(token);
-            free(cmd_copy);
-            return ERR_CMD_OR_ARGS_TOO_BIG;
+        // redirection into cmd
+        if (strcmp(token, "<") == 0) {
+
+            while (*ptr && isspace((unsigned char)*ptr)) ptr++; // skip leading spaces
+
+            if (*ptr == '\0') return ERR_BAD_REDIRECT;
+
+            char* in_start = ptr;
+            if (*ptr == '"') {
+
+                ptr++;
+                in_start = ptr;
+                while (*ptr && *ptr != '"') ptr++;
+                if (*ptr == '"') {
+                    *ptr = '\0';
+                    ptr++;
+                }
+
+            } else {
+
+                while (*ptr && *ptr != ' ') ptr++;
+                if (*ptr) {
+                    *ptr = '\0';
+                    ptr++;
+                }
+
+            }
+
+            cmd->infile = strdup(in_start);
+
         }
 
-        cmd->argv[cmd->argc++] = token;
+        // redirection out of cmd
+        else if (strcmp(token, ">") == 0 || strcmp(token, ">>") == 0) {
+
+            cmd->append = (strcmp(token, ">>") == 0);
+
+            while (*ptr && *ptr == ' ') ptr++; // skip leading whitespace
+            if (*ptr == '\0') return ERR_BAD_REDIRECT;
+            char* out_start = ptr;
+
+            if (*ptr == '"') {
+
+                ptr++;
+                out_start = ptr;
+                while (*ptr && *ptr != '"') ptr++;
+                if (*ptr == '"') {
+                    *ptr = '\0';
+                    ptr++;
+                }
+
+            } else {
+
+                while (*ptr && *ptr != ' ') ptr++;
+                if (*ptr) {
+                    *ptr = '\0';
+                    ptr++;
+                }
+
+            }
+
+            cmd->outfile = strdup(out_start);
+
+        }
+
+        // not redirection, "normal"
+        else {
+
+            if (cmd->argc >= ARG_MAX) {
+                free(token);
+                free(cmd_copy);
+                return ERR_CMD_OR_ARGS_TOO_BIG;
+            }
+
+            cmd->argv[cmd->argc++] = token;
+
+        }
     }
 
-    if (cmd->argc == 0) {
+    if (cmd->argc == 0 && cmd->infile == NULL && cmd->outfile == NULL) {
         free(cmd_copy);
         return WARN_NO_CMDS;
     }
@@ -388,6 +461,11 @@ int exec_local_cmd_loop()
             continue;
         }
 
+        if (parse_rc == ERR_BAD_REDIRECT) {
+            printf(CMD_ERR_REDIRECT);
+            continue;
+        }
+
         // if there's only one command, try to execute built-in first
         if (cmd_list.num == 1) {
             cmd_buff_t* current_cmd = &cmd_list.commands[0];
@@ -453,6 +531,22 @@ int exec_local_cmd_loop()
                 if (i < cmd_list.num - 1) {
                     close(pipe_fd[0]);
                     close(pipe_fd[1]);
+                }
+
+                // redirection if specified
+                if (cmd_list.commands[i].outfile != NULL) {
+
+                    int flags = O_WRONLY | O_CREAT;
+                    flags |= cmd_list.commands[i].append ? O_APPEND : O_TRUNC;
+                    int out_fd = open(cmd_list.commands[i].outfile, flags, 0644);
+                    if (out_fd < 0) {
+                        exit(errno);
+                    }
+                    if (dup2(out_fd, STDOUT_FILENO) < 0) {
+                        exit(errno);
+                    }
+                    close(out_fd);
+
                 }
 
                 // check if built-in
