@@ -1,6 +1,7 @@
 #ifndef __DSHLIB_H__
     #define __DSHLIB_H__
 
+#include <stdbool.h>
 
 //Constants for command structure sizes
 #define EXE_MAX 64
@@ -23,9 +24,9 @@ typedef struct cmd_buff
     int  argc;
     char *argv[CMD_ARGV_MAX];
     char *_cmd_buffer;
-    char *input_file;  // extra credit, stores input redirection file (for `<`)
-    char *output_file; // extra credit, stores output redirection file (for `>`)
-    bool append_mode; // extra credit, sets append mode fomr output_file
+    char *infile;  // extra credit, stores input redirection file (for `<`)
+    char *outfile; // extra credit, stores output redirection file (for `>`)
+    bool append; // extra credit, sets append mode fomr output_file
 } cmd_buff_t;
 
 typedef struct command_list{
@@ -51,13 +52,14 @@ typedef struct command_list{
 #define ERR_CMD_ARGS_BAD        -4      //for extra credit
 #define ERR_MEMORY              -5
 #define ERR_EXEC_CMD            -6
-#define OK_EXIT                 -7
+#define ERR_BAD_REDIRECT        -7
+#define OK_EXIT                 -8
 
 
 
 //prototypes
-int alloc_cmd_buff(cmd_buff_t *cmd_buff);
-int free_cmd_buff(cmd_buff_t *cmd_buff);
+int alloc_cmd_buff(cmd_buff_t *cmd_buff); // still not dynamically allocating, so don't need this for now
+int free_cmd_buff(cmd_buff_t *cmd_buff); // still not dynamically allocating, so don't need this for now
 int clear_cmd_buff(cmd_buff_t *cmd_buff);
 int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff);
 int close_cmd_buff(cmd_buff_t *cmd_buff);
@@ -73,6 +75,7 @@ typedef enum {
     BI_CMD_STOP_SVR,        //new command "stop-server"
     BI_NOT_BI,
     BI_EXECUTED,
+    BI_RC
 } Built_In_Cmds;
 Built_In_Cmds match_command(const char *input); 
 Built_In_Cmds exec_built_in_cmd(cmd_buff_t *cmd);
@@ -87,6 +90,8 @@ int execute_pipeline(command_list_t *clist);
 #define CMD_OK_HEADER       "PARSED COMMAND LINE - TOTAL COMMANDS %d\n"
 #define CMD_WARN_NO_CMD     "warning: no commands provided\n"
 #define CMD_ERR_PIPE_LIMIT  "error: piping limited to %d commands\n"
+#define CMD_ERR_EXECUTE     "error: %s"
+#define CMD_ERR_REDIRECT    "error: bad redirect syntax"
 #define BI_NOT_IMPLEMENTED "not implemented"
 
 #endif
