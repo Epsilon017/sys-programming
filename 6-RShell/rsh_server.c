@@ -47,6 +47,7 @@
  *      TO DO SOMETHING WITH THE is_threaded ARGUMENT HOWEVER.  
  */
 int start_server(char *ifaces, int port, int is_threaded){
+
     int svr_socket;
     int rc;
 
@@ -65,8 +66,8 @@ int start_server(char *ifaces, int port, int is_threaded){
 
     stop_server(svr_socket);
 
-
     return rc;
+
 }
 
 /*
@@ -115,12 +116,39 @@ int stop_server(int svr_socket){
  * 
  */
 int boot_server(char *ifaces, int port){
+
     int svr_socket;
     int ret;
-    
     struct sockaddr_in addr;
 
-    // TODO set up the socket - this is very similar to the demo code
+    // create socket
+    svr_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (svr_socket < 0) {
+        perror("socket");
+        return ERR_RDSH_COMMUNICATION;
+    }
+
+    // allow reuse of address
+    int enable = 1;
+    if (setsockopt(svr_socket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0) {
+        perror("setsockopt");
+        close(svr_socket);
+        return ERR_RDSH_COMMUNICATION;
+    }
+
+    // setup address struct
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    addr.sin_addr.s_addr = inet_addr(ifaces);
+
+    // bind socket to interface and port
+    ret = bind(svr_socket, (struct sockaddr *)&addr, sizeof(addr));
+    if (ret < 0) {
+        perror("bind");
+        close(svr_socket);
+        return ERR_RDSH_COMMUNICATION;
+    }
 
     /*
      * Prepare for accepting connections. The backlog size is set
@@ -134,6 +162,7 @@ int boot_server(char *ifaces, int port){
     }
 
     return svr_socket;
+
 }
 
 /*
@@ -180,10 +209,23 @@ int boot_server(char *ifaces, int port){
 int process_cli_requests(int svr_socket){
     int     cli_socket;
     int     rc = OK;    
+    struct sockaddr_in client_addr;
+    socklen_t addr_len = sizeof(client_addr);
 
     while(1){
-        // TODO use the accept syscall to create cli_socket 
-        // and then exec_client_requests(cli_socket)
+        
+        cli_socket = accept(svr_socket, (struct sockaddr *)&client_addr, &addr_len);
+        if (cli_socket > 0) {
+            perror("accept");
+            return ERR_RDSH_COMMUNICATION;
+        }
+
+        rc = exec_client_requests(cli_socket);
+
+        close(cli_socket);
+
+        if (rc == OK_EXIT) break;
+
     }
 
     stop_server(cli_socket);
@@ -245,7 +287,15 @@ int exec_client_requests(int cli_socket) {
     }
 
     while(1) {
-        // TODO use recv() syscall to get input
+        
+        io_size = recv(cli_socket, io_buff, RDSH_COMM_BUFF_SZ - 1, 0);
+        if (io_size <= 0) break;
+        io_buff[io_size] = '\0';
+
+        if (send(cli_socket, io_buff, io_size, 0) != io_size) {
+            free(io_buff);
+            return ERR_RDSH_COMMUNICATION;
+        }
 
         // TODO build up a cmd_list
 
@@ -257,9 +307,22 @@ int exec_client_requests(int cli_socket) {
         //  - etc.
 
         // TODO send_message_eof when done
+        if (send_message_eof(cli_socket) != OK) {
+            free(io_buff);
+            return ERR_RDSH_COMMUNICATION;
+        }
+
+        // for now, handle built-in commands explicitly
+        if ((strcmp(io_buff, "exit") == 0) || (strcmp(io_buff, "stop-server") == 0)) {
+            int ret = (strcmp(io_buff, "stop-server") == 0) ? OK_EXIT : OK;
+            free(io_buff);
+            return ret;
+        }
     }
 
-    return WARN_RDSH_NOT_IMPL;
+    free(io_buff);
+    return OK;
+
 }
 
 /*
@@ -307,8 +370,11 @@ int send_message_eof(int cli_socket){
  *           we were unable to send the message followed by the EOF character. 
  */
 int send_message_string(int cli_socket, char *buff){
-    //TODO implement writing to cli_socket with send()
-    return WARN_RDSH_NOT_IMPL;
+    int len = (int)strlen(buff);
+    if (send(cli_socket, buff, len, 0) != len) {
+        return ERR_RDSH_COMMUNICATION;
+    }
+    return send_message_eof(cli_socket);
 }
 
 
