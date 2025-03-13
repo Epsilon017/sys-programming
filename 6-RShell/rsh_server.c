@@ -226,7 +226,10 @@ int process_cli_requests(int svr_socket){
 
         close(cli_socket);
 
-        if (rc == OK_EXIT) break;
+        if (rc == OK_EXIT) {
+            rc = OK;
+            break;
+        }
 
     }
 
@@ -360,11 +363,10 @@ int exec_client_requests(int cli_socket) {
                 
             }
 
-        } else {
-
-            int pipeline_rc = rsh_execute_pipeline(cli_socket, &cmd_list);
-
         }
+        
+        int pipeline_rc = rsh_execute_pipeline(cli_socket, &cmd_list);
+        last_rc = pipeline_rc;
 
         // send_message_eof when done
         if (send_message_eof(cli_socket) != OK) {
@@ -568,6 +570,7 @@ int rsh_execute_pipeline(int cli_sock, command_list_t *clist) {
             // built-in
             if (match_command(clist->commands[i].argv[0]) != BI_NOT_BI) {
                 Built_In_Cmds built_in_rc = exec_built_in_cmd(&clist->commands[i]);
+                fflush(stdout);
                 if (built_in_rc == BI_EXECUTED) {
                     exit(0);
                 }
@@ -576,7 +579,6 @@ int rsh_execute_pipeline(int cli_sock, command_list_t *clist) {
 
             // external
             execvp(clist->commands[i].argv[0], clist->commands[i].argv);
-            perror("execvp");
             exit(errno);
 
         } else {
