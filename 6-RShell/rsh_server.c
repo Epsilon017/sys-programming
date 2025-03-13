@@ -16,6 +16,7 @@
 
 #include "dshlib.h"
 #include "rshlib.h"
+#include <errno.h>
 
 
 /*
@@ -355,14 +356,15 @@ int exec_client_requests(int cli_socket) {
                     continue;
                 
                 default:
-                    send_message_string(cli_socket, "EXTERNAL COMMANDS NOT YET IMPLEMENTED");
                     break;
                 
             }
 
-        }
+        } else {
 
-        else { send_message_string(cli_socket, "MULTIPLE COMMANDS NOT YET IMPLEMENTED"); }
+            int pipeline_rc = rsh_execute_pipeline(cli_socket, &cmd_list);
+
+        }
 
         // send_message_eof when done
         if (send_message_eof(cli_socket) != OK) {
@@ -469,11 +471,13 @@ int send_message_string(int cli_socket, char *buff){
  *                  get this value. 
  */
 int rsh_execute_pipeline(int cli_sock, command_list_t *clist) {
+
     int pipes[clist->num - 1][2];  // Array of pipes
     pid_t pids[clist->num];
     int  pids_st[clist->num];         // Array to store process IDs
     Built_In_Cmds bi_cmd;
     int exit_code;
+    int prev_fd = -1; // read end of prev pipe
 
     // Create all necessary pipes
     for (int i = 0; i < clist->num - 1; i++) {
@@ -483,13 +487,118 @@ int rsh_execute_pipeline(int cli_sock, command_list_t *clist) {
         }
     }
 
+    // fork each command in the pipeline
     for (int i = 0; i < clist->num; i++) {
-        // TODO this is basically the same as the piped fork/exec assignment, except for where you connect the begin and end of the pipeline (hint: cli_sock)
+        
+        pid_t pid = fork();
+        if (pid < 0) {
+            perror("fork");
+            exit(EXIT_FAILURE);
+        }
 
-        // TODO HINT you can dup2(cli_sock with STDIN_FILENO, STDOUT_FILENO, etc.
+        if (pid == 0) {
+            //child
+
+            // setup stdin
+            if (i == 0) {
+                
+                // first command, use cli_sock as stdin
+                if (dup2(cli_sock, STDIN_FILENO) < 0) {
+                    perror("dup2 stdin first");
+                    exit(errno);
+                }
+
+            } else {
+
+                // use previous pipe's read end
+                if (dup2(prev_fd, STDIN_FILENO) < 0) {
+                    perror("dup2 stdin next");
+                    exit(errno);
+                }
+
+            }
+
+            // setup stdout
+            if (i == clist->num - 1) {
+
+                // last command, use cli_sock for stdout
+                if (dup2(cli_sock, STDOUT_FILENO) < 0) {
+                    perror("dup2 stdout last");
+                    exit(errno);
+                }
+                if (dup2(cli_sock, STDERR_FILENO) < 0) {
+                    perror("dup2 stderr last");
+                    exit(errno);
+                }
+
+            } else {
+
+                // duplicate current pipe's write end to stdout
+                if (dup2(pipes[i][1], STDOUT_FILENO) < 0) {
+                    perror("dup2 stdout next");
+                    exit(errno);
+                }
+
+            }
+
+            // close pipes
+            for (int j = 0; j < clist->num - 1; j++) {
+                close(pipes[j][0]);
+                close(pipes[j][1]);
+            }
+
+            // redirection
+            if (clist->commands[i].outfile != NULL) {
+
+                int flags = O_WRONLY | O_CREAT;
+                flags |= clist->commands[i].append ? O_APPEND : O_TRUNC;
+                int out_fd = open(clist->commands[i].outfile, flags, 0644);
+                if (out_fd < 0) {
+                    perror("open outfile");
+                    exit(errno);
+                }
+                if (dup2(out_fd, STDOUT_FILENO) < 0) {
+                    perror("dup2 outfile");
+                    exit(errno);
+                }
+                close(out_fd);
+
+            }
+
+            // built-in
+            if (match_command(clist->commands[i].argv[0]) != BI_NOT_BI) {
+                Built_In_Cmds built_in_rc = exec_built_in_cmd(&clist->commands[i]);
+                if (built_in_rc == BI_EXECUTED) {
+                    exit(0);
+                }
+                exit(built_in_rc);
+            }
+
+            // external
+            execvp(clist->commands[i].argv[0], clist->commands[i].argv);
+            perror("execvp");
+            exit(errno);
+
+        } else {
+            // parent
+
+            pids[i] = pid;
+
+            if (i > 0) {
+                close(prev_fd);
+            }
+
+            // for every command except last, forward prev_fd to current pipe's read end
+            if (i < clist->num - 1) {
+
+                prev_fd = pipes[i][0];
+                close(pipes[i][1]);
+                
+            }
+
+        }
 
     }
-
 
     // Parent process: close all pipe ends
     for (int i = 0; i < clist->num - 1; i++) {
