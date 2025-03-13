@@ -332,6 +332,10 @@ Built_In_Cmds match_command(const char *cmd) {
         return BI_RC;
     }
 
+    if (strcmp(cmd, "stop-server") == 0) {
+        return BI_CMD_STOP_SVR;
+    }
+
     return BI_NOT_BI;
 
 }
@@ -351,7 +355,7 @@ Built_In_Cmds exec_built_in_cmd(cmd_buff_t* cmd_buff) {
     switch (cmd) {
 
         case BI_CMD_EXIT:
-            exit(0);
+            return BI_CMD_EXIT;
         
         case BI_CMD_DRAGON:
             print_dragon();
@@ -365,6 +369,9 @@ Built_In_Cmds exec_built_in_cmd(cmd_buff_t* cmd_buff) {
         case BI_RC:
             printf("%d\n", last_rc);
             break;
+
+        case BI_CMD_STOP_SVR:
+            return BI_CMD_STOP_SVR;
         
         default:
             return BI_NOT_BI;

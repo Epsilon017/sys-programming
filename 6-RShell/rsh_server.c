@@ -158,6 +158,7 @@ int boot_server(char *ifaces, int port){
     ret = listen(svr_socket, 20);
     if (ret == -1) {
         perror("listen");
+        close(svr_socket);
         return ERR_RDSH_COMMUNICATION;
     }
 
@@ -215,7 +216,7 @@ int process_cli_requests(int svr_socket){
     while(1){
         
         cli_socket = accept(svr_socket, (struct sockaddr *)&client_addr, &addr_len);
-        if (cli_socket > 0) {
+        if (cli_socket < 0) {
             perror("accept");
             return ERR_RDSH_COMMUNICATION;
         }
@@ -228,7 +229,6 @@ int process_cli_requests(int svr_socket){
 
     }
 
-    stop_server(cli_socket);
     return rc;
 }
 
@@ -288,36 +288,88 @@ int exec_client_requests(int cli_socket) {
 
     while(1) {
         
+        memset(io_buff, 0, RDSH_COMM_BUFF_SZ);
         io_size = recv(cli_socket, io_buff, RDSH_COMM_BUFF_SZ - 1, 0);
         if (io_size <= 0) break;
         io_buff[io_size] = '\0';
 
-        if (send(cli_socket, io_buff, io_size, 0) != io_size) {
-            free(io_buff);
-            return ERR_RDSH_COMMUNICATION;
+        clean_input(io_buff);
+
+        // if empty, send eof and continue
+        if (strlen(io_buff) == 0) {
+            if (send_message_eof(cli_socket) != OK) {
+                free(io_buff);
+                return ERR_RDSH_COMMUNICATION;
+            }
+            continue;
         }
 
-        // TODO build up a cmd_list
+        // build command list
+        int parse_rc = build_cmd_list(io_buff, &cmd_list);
+        if (parse_rc == ERR_TOO_MANY_COMMANDS) {
+            char error_msg[128];
+            sprintf(error_msg, CMD_ERR_PIPE_LIMIT, CMD_MAX);
+            send_message_string(cli_socket, error_msg);
+            continue;
+        }
 
-        // TODO rsh_execute_pipeline to run your cmd_list
+        if (parse_rc == WARN_NO_CMDS) {
+            char error_msg[128];
+            sprintf(error_msg, CMD_WARN_NO_CMD);
+            send_message_string(cli_socket, error_msg);
+            continue;
+        }
 
-        // TODO send appropriate respones with send_message_string
-        // - error constants for failures
-        // - buffer contents from execute commands
-        //  - etc.
+        if (parse_rc == ERR_CMD_OR_ARGS_TOO_BIG) {
+            char error_msg[128];
+            sprintf(error_msg, CMD_ERR_EXECUTE, "command or args too big");
+            send_message_string(cli_socket, error_msg);
+            continue;
+        }
 
-        // TODO send_message_eof when done
+        if (parse_rc == ERR_BAD_REDIRECT) {
+            char error_msg[128];
+            sprintf(error_msg, CMD_ERR_REDIRECT);
+            send_message_string(cli_socket, error_msg);
+            continue;
+        }
+
+        // if only one command, try executing as a built-in
+        if (cmd_list.num == 1) {
+            Built_In_Cmds bi_rc = exec_built_in_cmd(&cmd_list.commands[0]);
+            switch (bi_rc) {
+
+                case BI_CMD_EXIT:
+                    free(io_buff);
+                    return OK;
+                
+                case BI_CMD_STOP_SVR:
+                    free(io_buff);
+                    return OK_EXIT;
+                
+                case BI_EXECUTED:
+                    if (send_message_eof(cli_socket) != OK) {
+                        free(io_buff);
+                        return ERR_RDSH_COMMUNICATION;
+                    }
+                    continue;
+                
+                default:
+                    send_message_string(cli_socket, "EXTERNAL COMMANDS NOT YET IMPLEMENTED");
+                    break;
+                
+            }
+
+        }
+
+        else { send_message_string(cli_socket, "MULTIPLE COMMANDS NOT YET IMPLEMENTED"); }
+
+        // send_message_eof when done
         if (send_message_eof(cli_socket) != OK) {
             free(io_buff);
             return ERR_RDSH_COMMUNICATION;
         }
 
-        // for now, handle built-in commands explicitly
-        if ((strcmp(io_buff, "exit") == 0) || (strcmp(io_buff, "stop-server") == 0)) {
-            int ret = (strcmp(io_buff, "stop-server") == 0) ? OK_EXIT : OK;
-            free(io_buff);
-            return ret;
-        }
     }
 
     free(io_buff);
