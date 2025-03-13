@@ -85,6 +85,19 @@ int exec_local_cmd_loop();
 int exec_cmd(cmd_buff_t *cmd);
 int execute_pipeline(command_list_t *clist);
 
+//functions
+void clean_input(char* cmd_line);
+int build_cmd_buff(char* cmd_line, cmd_buff_t* cmd);
+int clear_cmd_buff(cmd_buff_t* cmd_buff);
+int build_cmd_list(char *cmd_line, command_list_t *clist);
+Built_In_Cmds match_command(const char *cmd);
+Built_In_Cmds exec_built_in_cmd(cmd_buff_t* cmd_buff);
+int exec_local_cmd_loop();
+
+//variable
+extern int last_rc;
+
+
 
 //output constants
 #define CMD_OK_HEADER       "PARSED COMMAND LINE - TOTAL COMMANDS %d\n"
