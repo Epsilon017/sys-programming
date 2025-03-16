@@ -681,13 +681,13 @@ int rsh_execute_pipeline(int cli_sock, command_list_t *clist) {
 
     }
 
-    // Parent process: close all pipe ends
+    // close all pipe ends
     for (int i = 0; i < clist->num - 1; i++) {
         close(pipes[i][0]);
         close(pipes[i][1]);
     }
 
-    // Wait for all children
+    // wait for all children
     for (int i = 0; i < clist->num; i++) {
         waitpid(pids[i], &pids_st[i], 0);
     }
@@ -701,6 +701,33 @@ int rsh_execute_pipeline(int cli_sock, command_list_t *clist) {
         if (WEXITSTATUS(pids_st[i]) == EXIT_SC)
             exit_code = EXIT_SC;
     }
+
+    // error reporting
+    for (int i = 0; i < clist->num; i++) {
+        int status = WEXITSTATUS(pids_st[i]);
+        if (status != 0) {
+            switch(status) {
+                case ENOENT:
+                    send_message_string(cli_sock, "Command not found in PATH\n");
+                    break;
+                case EACCES:
+                    send_message_string(cli_sock, "Permission denied\n");
+                    break;
+                case ENOTDIR:
+                    send_message_string(cli_sock, "Invalid path\n");
+                    break;
+                case EISDIR:
+                    send_message_string(cli_sock, "Unable to execute directory\n");
+                    break;
+                case ENOMEM:
+                    send_message_string(cli_sock, "Not enough memory to execute\n");
+                    break;
+                default:
+                    send_message_string(cli_sock, "Execution failed\n");
+            }
+        }
+    }
+
     return exit_code;
 }
 
