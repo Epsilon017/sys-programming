@@ -123,16 +123,11 @@ int exec_remote_cmd_loop(char *address, int port)
             return client_cleanup(cli_socket, cmd_buff, rsp_buff, ERR_RDSH_COMMUNICATION);
         }
 
-        // for now, implement built-in commands explicitly
-        if ((strcmp(cmd_buff, "exit") == 0) || (strcmp(cmd_buff, "stop-server") == 0)) {
-            break;
-        }
-
         // receive and print until EOF detected
         while (1) {
 
             io_size = recv(cli_socket, rsp_buff, RDSH_COMM_BUFF_SZ, 0);
-            if (io_size < 0) {
+            if (io_size <= 0) {
                 io_size == 0 ? printf("server closed connection.\n") : perror("recv");
                 return client_cleanup(cli_socket, cmd_buff, rsp_buff, ERR_RDSH_COMMUNICATION);
             }

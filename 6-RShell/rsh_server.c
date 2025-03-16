@@ -274,6 +274,8 @@ int process_cli_requests(int svr_socket){
 
         rc = exec_client_requests(cli_socket);
 
+        send(cli_socket, NULL, 0, 0);
+
         close(cli_socket);
 
         if (rc == OK_EXIT) {
