@@ -249,6 +249,12 @@ int clear_cmd_buff(cmd_buff_t* cmd_buff) {
  */
 int build_cmd_list(char *cmd_line, command_list_t *clist)
 {
+
+    // having memory problems, here's a quick solution: wipe the memory
+    clist->num = 0;
+    for (int i = 0; i < CMD_MAX; i++) {
+        memset(&clist->commands[i], 0, sizeof(cmd_buff_t));
+    }
     
     char* tokenized_commands[CMD_MAX] = {NULL};
     char* cmd_copy = strdup(cmd_line);

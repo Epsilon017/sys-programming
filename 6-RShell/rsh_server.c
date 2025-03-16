@@ -19,6 +19,56 @@
 #include <errno.h>
 
 
+// I'm having problems keeping track of what's stdout and stderr, so this struct and these functions should help
+typedef struct {
+    int stdout_fd;
+    int stderr_fd;
+} fd_save_t;
+
+fd_save_t save_std_fds() {
+
+    fd_save_t save;
+    save.stdout_fd = dup(STDOUT_FILENO);
+    save.stderr_fd = dup(STDERR_FILENO);
+    return save;
+
+}
+
+int restore_std_fds(fd_save_t save) {
+
+    int rc = 0;
+    if (dup2(save.stdout_fd, STDOUT_FILENO) < 0) {
+        perror("restore stdout");
+        rc = -1;
+    }
+    if (dup2(save.stderr_fd, STDERR_FILENO) < 0) {
+        perror("restore stderr");
+        rc = -1;
+    }
+    close(save.stdout_fd);
+    close(save.stderr_fd);
+    return rc;
+
+}
+
+int redirect_output_to_fd(int new_fd) {
+
+    if (dup2(new_fd, STDOUT_FILENO) < 0) {
+        perror("dup2 new_fd to stdout");
+        return -1;
+    }
+
+    if (dup2(new_fd, STDERR_FILENO) < 0) {
+        perror("dup2 new_fd to stderr");
+        return -1;
+    }
+
+    return 0;
+
+}
+
+
+
 /*
  * start_server(ifaces, port, is_threaded)
  *      ifaces:  a string in ip address format, indicating the interface
@@ -340,29 +390,56 @@ int exec_client_requests(int cli_socket) {
 
         // if only one command, try executing as a built-in
         if (cmd_list.num == 1) {
-            Built_In_Cmds bi_rc = exec_built_in_cmd(&cmd_list.commands[0]);
-            switch (bi_rc) {
 
-                case BI_CMD_EXIT:
-                    free(io_buff);
-                    return OK;
-                
-                case BI_CMD_STOP_SVR:
-                    free(io_buff);
-                    return OK_EXIT;
-                
-                case BI_EXECUTED:
-                    if (send_message_eof(cli_socket) != OK) {
-                        free(io_buff);
-                        return ERR_RDSH_COMMUNICATION;
-                    }
-                    continue;
-                
-                default:
-                    break;
-                
+            // redirect output to client socket
+            fd_save_t std_fd_save = save_std_fds();
+            if (redirect_output_to_fd(cli_socket) < 0) {
+                free(io_buff);
+                return ERR_RDSH_COMMUNICATION;
             }
 
+            Built_In_Cmds bi_rc = exec_built_in_cmd(&cmd_list.commands[0]);
+
+            if (bi_rc != BI_NOT_BI) {
+
+                fflush(stdout);
+
+                switch (bi_rc) {
+
+                    case BI_CMD_EXIT:
+                        // restore original stdout
+                        restore_std_fds(std_fd_save);
+                        free(io_buff);
+                        return OK;
+                    
+                    case BI_CMD_STOP_SVR:
+                        // restore original stdout
+                        restore_std_fds(std_fd_save);
+                        free(io_buff);
+                        return OK_EXIT;
+                    
+                    case BI_EXECUTED:
+                    default:
+                        break;
+                    
+                }
+
+                // flush so everything is sent over socket
+                fflush(stdout);
+
+                // restore original stdout
+                if (restore_std_fds(std_fd_save) < 0) {
+                    free(io_buff);
+                    return ERR_RDSH_COMMUNICATION;
+                }
+
+                if (send_message_eof(cli_socket) != OK) {
+                    return ERR_RDSH_COMMUNICATION;
+                }
+
+                continue;
+                
+            }
         }
         
         int pipeline_rc = rsh_execute_pipeline(cli_socket, &cmd_list);
